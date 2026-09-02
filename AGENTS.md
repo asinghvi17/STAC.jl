@@ -99,6 +99,10 @@ Fixtures are vendored, never fetched during a test run.
 | `test/fixtures/hand/` | hand-written documents covering shapes the spec examples miss |
 | `test/fixtures/real-world/` | one recorded response per public endpoint, recorded once with `curl` |
 | `test/fixtures/static/` | one catalog published three ways, derived from the spec examples |
+| `test/fixtures/tokens/` | credential responses in the shape a service sends, with fixed expiries |
+
+`stac-spec/` and `hand/` hold STAC documents alone: `test/write.jl` reads every `.json` under
+both and round-trips it, so anything else belongs in a directory of its own.
 
 Re-record a real-world fixture with the same URL and a `STAC.jl` User-Agent, and keep the
 response body byte-for-byte as the server sent it.

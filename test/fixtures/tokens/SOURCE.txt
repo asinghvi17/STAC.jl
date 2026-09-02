@@ -1,0 +1,10 @@
+Hand-written credential responses, in the shape the services really answer with, and with
+fixed expiries so that what a test asserts does not depend on the clock.
+
+  pc-sas-fresh.json    a Planetary Computer SAS token that expires in 2999, so a second
+                       `rewrite` is answered from the cache
+  pc-sas-expired.json  the same body with a 2020 expiry, so a second `rewrite` re-requests
+
+The shape itself is not invented: ../endpoints/planetary-computer-sas/token.json is what the
+service sent on 2026-09-02, and test/auth.jl parses that recording as well. These two carry
+no signature that ever signed anything.

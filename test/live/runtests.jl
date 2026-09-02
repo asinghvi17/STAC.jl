@@ -69,3 +69,32 @@ else
         sleep(5)
     end
 end
+
+# The Planetary Computer's SAS token service, which no recording can keep honest: a token is
+# minted per request and expires within the hour. What this asks is whether an anonymous
+# request still works and whether what comes back still signs a blob href.
+#
+# Rasters and ArchGDAL are weak dependencies, so opening the pixels is not part of this
+# environment. `route` is the whole of what STAC contributes to that call, and it is core.
+if LIVE
+    @testset "live: Planetary Computer SAS" begin
+        auth = PlanetaryComputerSAS()
+        client = Client("https://planetarycomputer.microsoft.com/api/stac/v1"; auth)
+        item = retrying() do
+            first(search(client; collections = ["sentinel-2-l2a"], datetime = WINDOW,
+                         limit = 1))
+        end
+        asset = STAC.asset(item, "B04")
+        @test STAC.blobparts(asset.href) !== nothing
+
+        r = STAC.route(STAC.driver(asset), asset, client.io)
+        @test startswith(r.filename, "/vsicurl/https://")
+        @test occursin("sig=", r.filename)
+        @test r.source === :gdal
+
+        # The signed URL is one GDAL can range-read, which is the assertion that matters.
+        signed = chopprefix(r.filename, "/vsicurl/")
+        resp = HTTP.request("GET", signed, ["Range" => "bytes=0-99"]; status_exception = false)
+        @test resp.status == 206
+    end
+end

@@ -1,0 +1,12 @@
+{
+  "recorded": "2026-09-02",
+  "requests": [
+    {
+      "body": null,
+      "href": "https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel2l2a01/sentinel2-l2",
+      "method": "GET",
+      "response": "token.json"
+    }
+  ],
+  "url": "https://planetarycomputer.microsoft.com/api/sas/v1/token"
+}

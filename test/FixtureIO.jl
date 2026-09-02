@@ -28,11 +28,13 @@ ways. A *mount* maps one href prefix onto a directory, so the file at `<dir>/<re
 manifest.
 
 `io.reads` counts the fetches that happened, which is how the traversal and paging tests
-assert that nothing is fetched before it is reached.
+assert that nothing is fetched before it is reached, and `io.seen` holds the headers of each
+fetch in order, which is how the auth tests assert what a credential put on the wire.
 """
 mutable struct FixtureIO <: STAC.AbstractIO
     const routes::Dict{String,String}
     const recordings::Vector{Recording}
+    const seen::Vector{STAC.RequestHeaders}
     reads::Int
 end
 
@@ -45,7 +47,7 @@ function FixtureIO(mounts::Pair...)
             routes[prefix * replace(relpath(path, dir), '\\' => '/')] = path
         end
     end
-    return FixtureIO(routes, Recording[], 0)
+    return FixtureIO(routes, Recording[], STAC.RequestHeaders[], 0)
 end
 
 """
@@ -60,7 +62,20 @@ function recordings(dir::AbstractString)
 end
 
 recordedio(dirs::AbstractString...) =
-    FixtureIO(Dict{String,String}(), reduce(vcat, map(recordings, dirs)), 0)
+    FixtureIO(Dict{String,String}(), reduce(vcat, map(recordings, dirs)),
+              STAC.RequestHeaders[], 0)
+
+"""
+    answering(href => path, …)
+
+A [`FixtureIO`](@ref) that answers `GET href` with the bytes of `path`, for the hrefs a
+mount cannot express: a token service names its resource with a path, not with a `.json`
+file.
+"""
+answering(pairs::Pair...) =
+    FixtureIO(Dict{String,String}(),
+              [Recording("GET", String(first(p)), nothing, String(last(p))) for p in pairs],
+              STAC.RequestHeaders[], 0)
 
 """
     endpointurl(dir) -> String
@@ -93,6 +108,7 @@ function _replay(io::FixtureIO, method, href, body)
 end
 
 function STAC.read(io::FixtureIO, href::AbstractString)
+    push!(io.seen, STAC.RequestHeaders())
     path = get(io.routes, convert(String, href), nothing)
     path === nothing && return _replay(io, "GET", href, nothing)
     io.reads += 1
@@ -103,6 +119,7 @@ function STAC.request(io::FixtureIO, method::AbstractString, href::AbstractStrin
                       headers = STAC.NO_HEADERS, body = nothing)
     (method == "GET" && body === nothing && haskey(io.routes, convert(String, href))) &&
         return STAC.read(io, href)
+    push!(io.seen, STAC.RequestHeaders(collect(headers)))
     return _replay(io, method, href, body)
 end
 

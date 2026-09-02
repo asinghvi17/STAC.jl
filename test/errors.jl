@@ -29,16 +29,28 @@ const EXCEPTIONS = [
     (STAC.NoOrigin("./item.json"), LookupError, ["./item.json", "STAC.sethref"]),
     (STAC.MissingExtension("Sat", "sat", "Item"), LookupError, ["Sat", "sat:", "Item"]),
     (STAC.MissingColumn(:nosuchcolumn), LookupError, ["nosuchcolumn"]),
+    (STAC.MissingAsset("B04", "red, green, blue"), LookupError, ["B04", "red, green, blue"]),
+    (STAC.MissingDatetime("undated"), LookupError, ["undated", "start_datetime"]),
     (STAC.NotAGeometry("String"), ArgumentShapeError, ["intersects", "String"]),
     (STAC.NotQueryable("String"), ArgumentShapeError, ["String", "SphericalCap"]),
     (STAC.BadBBox(3), ArgumentShapeError, ["4 or 6", "3"]),
     (STAC.BadInterval(1), ArgumentShapeError, ["datetime", "two values", "1"]),
     (STAC.EmptyPredicate("Within"), ArgumentShapeError, ["Within()", "Within(polygon)"]),
+    (STAC.NotGeoJSONAsset("GDALDriver", "Rasters, ArchGDAL", "s3://b/B4.tif"),
+     ArgumentShapeError, ["GDALDriver", "import Rasters, ArchGDAL", "s3://b/B4.tif"]),
+    (STAC.NotARasterAsset("GeoJSONDriver", "/d/f.geojson"), ArgumentShapeError,
+     ["GeoJSONDriver", "/d/f.geojson", "STAC.read(asset)"]),
+    (STAC.MixedResolution(["B04", "B11"], ["10980×10980", "5490×5490"]), ArgumentShapeError,
+     ["B04", "B11", "10980×10980", "5490×5490"]),
     (STAC.NoConformance("https://example.com", "item-search#filter", "`filter =`", 12),
      EndpointError, ["https://example.com", "item-search#filter", "`filter =`", "12"]),
     (STAC.NoRoute("s3", "s3://bucket/catalog.json"), EndpointError,
      ["s3", "s3://bucket/catalog.json", "StreamRouterIO"]),
     (STAC.MethodUnsupported("PathIO", "POST"), EndpointError, ["PathIO", "GET", "POST"]),
+    (STAC.NoToken("https://example.com/token/a/c"), EndpointError,
+     ["https://example.com/token/a/c", "token"]),
+    (STAC.NoDriverPackage("DuckDBDriver", "DuckDB", "s3://b/items.parquet"), EndpointError,
+     ["DuckDBDriver", "import DuckDB", "s3://b/items.parquet"]),
 ]
 
 @testset "every exception is a STACError and prints the values it carries" begin
@@ -137,4 +149,5 @@ end
     @test_throws STAC.MethodUnsupported("PathIO", "DELETE") STAC.request(STAC.PathIO(), "DELETE", "x")
     @test_throws STAC.NoRoute("s3", "s3://b/k") STAC.read(StreamRouterIO(("" => STAC.PathIO(),)), "s3://b/k")
     @test_throws STAC.BadDateTime("nope") STAC.parse_rfc3339("nope")
+    @test_throws STAC.NoDriverPackage("DuckDBDriver", "DuckDB", "/d/x.pq") STAC._nodriverpackage(STAC.DuckDBDriver(), "/d/x.pq")
 end

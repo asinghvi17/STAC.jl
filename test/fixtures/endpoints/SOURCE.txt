@@ -29,3 +29,22 @@ The six endpoints cover the three paging shapes the spec permits:
 
 and the two count shapes: `numberMatched` (earth-search, landsatlook, itslive), the
 deprecated `context.matched` (cmr-lpcloud), and none at all (planetary-computer, cdse).
+
+planetary-computer-sas/ is the seventh directory and holds no STAC at all: it is the
+Planetary Computer's SAS token service, which mints the read signature `PlanetaryComputerSAS`
+appends to a blob href.
+
+  token.json        GET /api/sas/v1/token/sentinel2l2a01/sentinel2-l2, anonymously
+  token-key.json    the same request carrying Ocp-Apim-Subscription-Key, recorded only when
+                    PC_SDK_SUBSCRIPTION_KEY is set; absent here, since recording it needs a
+                    Planetary Computer account
+  requests.json     the (method, href, body) that produced token.json
+
+Anonymous requests work: the service answered this one without a key on 2026-09-02 and gave
+a token good for 45 minutes. A key the service does not recognise is ignored rather than
+rejected — a probe with a made-up key came back HTTP 200 with a token of the same shape.
+
+token.json is what proves the shape: `PlanetaryComputerSAS` parses this exact body into a
+token and an expiry. Which side of that expiry the clock is on changes by the hour, so the
+cache and refresh paths are tested against ../tokens/, whose two bodies have the same shape
+and fixed expiries.

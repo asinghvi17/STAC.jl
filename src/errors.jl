@@ -234,6 +234,36 @@ end
 Base.showerror(io::IO, e::MissingColumn) =
     print(io, "no column named :", e.name, " in this item table")
 
+"""
+    STAC.MissingAsset(key, available)
+
+The item carries no asset under this key. `available` lists the keys it does carry, comma
+separated, since producers name the same band differently on every endpoint (`"B04"`,
+`"red"`, `"B4"`).
+"""
+struct MissingAsset <: LookupError
+    key::String
+    available::String
+end
+
+Base.showerror(io::IO, e::MissingAsset) =
+    print(io, "this item has no asset named \"", e.key, "\"; it has ", e.available)
+
+"""
+    STAC.MissingDatetime(id)
+
+The item states neither `datetime` nor `start_datetime`, so it takes no place on the time
+axis of a
+[`RasterSeries`](https://rafaqz.github.io/Rasters.jl/stable/api/#Rasters.RasterSeries).
+"""
+struct MissingDatetime <: LookupError
+    id::String
+end
+
+Base.showerror(io::IO, e::MissingDatetime) =
+    print(io, "item ", e.id, " states neither `datetime` nor `start_datetime`, so it has no ",
+          "place on a time axis")
+
 # ---------------------------------------------------------------------------------------
 # Argument shapes
 
@@ -304,6 +334,62 @@ Base.showerror(io::IO, e::EmptyPredicate) =
     print(io, e.predicate, "() carries no geometry to compare against; wrap one, as in ",
           e.predicate, "(polygon)")
 
+"""
+    STAC.NotGeoJSONAsset(driver, package, href)
+
+[`STAC.read`](@ref) was given an asset that is not GeoJSON. `driver` names what does open it
+and `package` names what to load first, so the message is the whole route to the pixels.
+"""
+struct NotGeoJSONAsset <: ArgumentShapeError
+    driver::String
+    package::String
+    href::String
+end
+
+Base.showerror(io::IO, e::NotGeoJSONAsset) =
+    print(io, "`STAC.read` parses an asset as GeoJSON, and ", e.href, " opens through ",
+          e.driver, " instead. Run `import ", e.package,
+          "` and open it with `Raster(asset)`.")
+
+"""
+    STAC.NotARasterAsset(driver, href)
+
+`Raster(asset)` was given a GeoJSON asset. [`STAC.read`](@ref) is what parses one.
+"""
+struct NotARasterAsset <: ArgumentShapeError
+    driver::String
+    href::String
+end
+
+Base.showerror(io::IO, e::NotARasterAsset) =
+    print(io, "`Raster` opens raster assets, and ", e.href, " opens through ", e.driver,
+          " instead. Parse it with `STAC.read(asset)`.")
+
+"""
+    STAC.MixedResolution(keys, shapes)
+
+The assets named for one stack sit on grids of different sizes. `keys` and `shapes` are
+parallel: `shapes[i]` is the `proj:shape` of `keys[i]`, written `"rows×columns"`.
+
+Resampling has a right answer per dataset — nearest for a classification, an average for
+reflectance — so the caller makes that choice and this says which assets need it.
+"""
+struct MixedResolution <: ArgumentShapeError
+    keys::Vector{String}
+    shapes::Vector{String}
+end
+
+function Base.showerror(io::IO, e::MixedResolution)
+    print(io, "these assets are on grids of different sizes, so they stack only after ",
+          "resampling:")
+    for i in eachindex(e.keys)
+        print(io, "\n  ", e.keys[i], ": ", e.shapes[i])
+    end
+    print(io, "\nBring them to one grid with `Rasters.resample`, choosing the method the ",
+          "data calls for, and stack the results.")
+    return nothing
+end
+
 # ---------------------------------------------------------------------------------------
 # Endpoints
 
@@ -352,3 +438,33 @@ end
 
 Base.showerror(io::IO, e::MethodUnsupported) =
     print(io, e.io, " answers GET only, not ", e.method)
+
+"""
+    STAC.NoToken(url)
+
+The token service answered without a `token` key, so there is no signature to append to an
+href.
+"""
+struct NoToken <: EndpointError
+    url::String
+end
+
+Base.showerror(io::IO, e::NoToken) =
+    print(io, "the token service at ", e.url, " answered without a `token` key")
+
+"""
+    STAC.NoDriverPackage(driver, package, href)
+
+The driver that opens this asset comes from a package the session has not loaded. `package`
+names it; `import`ing it defines the method that was missing.
+"""
+struct NoDriverPackage <: EndpointError
+    driver::String
+    package::String
+    href::String
+end
+
+Base.showerror(io::IO, e::NoDriverPackage) =
+    print(io, "opening ", e.href, " goes through ", e.driver,
+          ", whose route another package defines. Run `import ", e.package, "` to add it.")
+

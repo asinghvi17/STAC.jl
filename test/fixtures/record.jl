@@ -129,3 +129,45 @@ for e in ENDPOINTS
         @error "recording failed" endpoint = e.name exception = err
     end
 end
+
+# The Planetary Computer's SAS token service, recorded on its own because it is not a STAC
+# endpoint: the response is a token and an expiry, and what the recording answers is whether
+# an anonymous request still works. Run it as
+#
+#     julia --project=. test/fixtures/record.jl sas
+#
+# Set PC_SDK_SUBSCRIPTION_KEY to record the keyed request as well. It goes to a second file
+# under the same href, so `FixtureIO` replays whichever one a test mounts.
+const SAS_DIR = joinpath(ENDPOINTS_DIR, "planetary-computer-sas")
+const SAS_ACCOUNT = "sentinel2l2a01"
+const SAS_CONTAINER = "sentinel2-l2"
+
+function record_sas()
+    mkpath(SAS_DIR)
+    io = HTTPIO(NoAuth())
+    url = STAC.PC_SAS_URL * "/" * SAS_ACCOUNT * "/" * SAS_CONTAINER
+    manifest = Dict{String,Any}[]
+
+    @info "recording" name = "token.json" url
+    write(joinpath(SAS_DIR, "token.json"), STAC.request(io, "GET", url))
+    push!(manifest, Dict{String,Any}("method" => "GET", "href" => url, "body" => nothing,
+                                     "response" => "token.json"))
+
+    key = get(ENV, "PC_SDK_SUBSCRIPTION_KEY", "")
+    if isempty(key)
+        @info "no PC_SDK_SUBSCRIPTION_KEY; recording the anonymous request only"
+    else
+        sleep(PAUSE)
+        @info "recording" name = "token-key.json" url
+        bytes = STAC.request(io, "GET", url;
+                             headers = ["Ocp-Apim-Subscription-Key" => key])
+        write(joinpath(SAS_DIR, "token-key.json"), bytes)
+    end
+
+    write(joinpath(SAS_DIR, "requests.json"),
+          JSON.json(Dict{String,Any}("url" => STAC.PC_SAS_URL, "recorded" => string(today()),
+                                     "requests" => manifest); pretty = 2))
+    return nothing
+end
+
+("sas" in ARGS || isempty(ARGS)) && record_sas()

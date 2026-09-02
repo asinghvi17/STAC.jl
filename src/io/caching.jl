@@ -38,3 +38,5 @@ request(io::CachingIO, method::AbstractString, href::AbstractString;
 Drop every cached body, so the next `read` of each href goes back to the inner IO.
 """
 Base.empty!(io::CachingIO) = (empty!(io.cache); io)
+
+authfor(io::CachingIO, href::AbstractString) = authfor(io.inner, href)

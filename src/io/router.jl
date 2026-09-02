@@ -50,3 +50,15 @@ request(r::StreamRouterIO, method::AbstractString, href::AbstractString;
     push!(ex.args, :(_noroute(scheme, href)))
     return ex
 end
+
+# The same unrolled scheme match `read` uses, so the auth reported is the one the child that
+# would fetch this href carries.
+@generated function authfor(r::StreamRouterIO{T}, href::AbstractString) where {T}
+    ex = Expr(:block, :(scheme = urischeme(href)))
+    for i in 1:fieldcount(T)
+        push!(ex.args, :(@inbounds(r.routes[$i]).first == scheme &&
+                         return authfor(@inbounds(r.routes[$i]).second, href)))
+    end
+    push!(ex.args, :(return NoAuth()))
+    return ex
+end

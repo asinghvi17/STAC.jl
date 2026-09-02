@@ -75,3 +75,5 @@ read(io::HTTPIO, href::AbstractString) = _http(io, "GET", href, NO_HEADERS, noth
 
 request(io::HTTPIO, method::AbstractString, href::AbstractString;
         headers = NO_HEADERS, body = nothing) = _http(io, method, href, headers, body)
+
+authfor(io::HTTPIO, ::AbstractString) = io.auth

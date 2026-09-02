@@ -100,3 +100,27 @@ function read(href::AbstractString; io::AbstractIO = default_io(), kw...)
     origin = absolutehref(href)
     return sethref(parse(read(io, origin), ParseOptions(; kw...)), origin)
 end
+
+"""
+    STAC.read(asset::Asset; io = STAC.default_io())
+
+The GeoJSON an asset holds, as the GeoJSON.jl object its `type` key names: a
+`FeatureCollection` for a footprint file, a `Feature` or a geometry for a single shape.
+
+The bytes come through the IO stack, so an asset behind credentials reads with them and an
+asset on `s3://` reads through whatever route the stack has for that scheme. A raster asset
+raises a [`STAC.NotGeoJSONAsset`](@ref) naming the driver that does open it.
+
+```julia
+asset = Asset("/data/footprint.geojson", "application/geo+json",
+              nothing, nothing, ["metadata"], nothing, NoMetadata())
+fc = STAC.read(asset)               # GeoJSON.FeatureCollection
+GeoInterface.nfeature(fc)           # however many shapes the file holds
+```
+"""
+read(asset::Asset; io::AbstractIO = default_io()) = readasset(driver(asset), asset, io)
+
+readasset(d::AbstractDriver, asset::Asset, ::AbstractIO) = _notgeojsonasset(d, asset)
+
+readasset(d::GeoJSONDriver, asset::Asset, io::AbstractIO) =
+    GeoJSON.read(read(io, route(d, asset, io).filename); numbertype = Float64)

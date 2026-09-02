@@ -47,7 +47,9 @@ include("io/path.jl")
 include("io/http.jl")
 include("io/caching.jl")
 include("io/router.jl")
+include("io/s3.jl")
 include("io/default.jl")
+include("drivers.jl")
 include("traverse.jl")
 include("document.jl")
 include("geo.jl")
@@ -62,8 +64,14 @@ include("show.jl")
 export Asset, Band, Catalog, Collection, CollectionExtent, Item, ItemCollection, Link,
        Metadata, NoMetadata, Properties, Provider, SpatialExtent, TemporalExtent
 export EO, Projection, Sat, Scientific, View
-export AbstractIO, BearerToken, CachingIO, HTTPIO, NoAuth, PathIO, StreamRouterIO
+export AbstractIO, BearerToken, CachingIO, EarthdataLogin, HTTPIO, NoAuth, PathIO,
+       PlanetaryComputerSAS, S3IO, StreamRouterIO
 export Client, children, collections, items, matched, pages, search
 export SpatialIndex, spatialindex
+
+# The one hint the package registers: `S3IO` is a name core owns and a package core does not
+# depend on implements, so a call to it with AWSS3 unloaded is a `MethodError` with nothing
+# in it to say so.
+__init__() = Base.Experimental.register_error_hint(_s3hint, MethodError)
 
 end # module STAC

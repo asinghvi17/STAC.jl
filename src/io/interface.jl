@@ -46,3 +46,22 @@ function request(io::AbstractIO, method::AbstractString, href::AbstractString;
     method == "GET" || _nomethod(io, method)
     return read(io, href)
 end
+
+"""
+    STAC.authfor(io, href) -> AbstractAuth
+
+The credentials `io` would fetch `href` with. A wrapper asks its inner IO and a router asks
+the child its scheme picks, so a stack that signs `https` and stays anonymous on `s3` reports
+the auth that actually applies to the href at hand.
+
+This is how a driver reaches the catalog's credentials without a transport: [`STAC.route`](@ref)
+asks the stack for the auth, and then asks the auth to sign the href and to name the GDAL
+options GDAL will need.
+
+```julia
+STAC.authfor(STAC.defaultstack(BearerToken("s3cret")), "https://example.com/b.tif")
+# BearerToken("s3cret")
+STAC.authfor(STAC.defaultstack(BearerToken("s3cret")), "/data/b.tif")   # NoAuth()
+```
+"""
+authfor(::AbstractIO, ::AbstractString) = NoAuth()
