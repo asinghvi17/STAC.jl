@@ -335,6 +335,36 @@ Base.showerror(io::IO, e::EmptyPredicate) =
           e.predicate, "(polygon)")
 
 """
+    STAC.BadOption(option, value, allowed)
+
+A keyword given a value outside the set it takes. `allowed` lists the set, spelled as the
+values themselves.
+"""
+struct BadOption <: ArgumentShapeError
+    option::String
+    value::String
+    allowed::String
+end
+
+Base.showerror(io::IO, e::BadOption) =
+    print(io, "`", e.option, " = :", e.value, "` is not a value this call takes; use ",
+          e.allowed)
+
+"""
+    STAC.MissingRootHref(links)
+
+A published link style asked for without the URL the tree will be published under.
+`:self_contained` is the style that needs none, every link in it being relative.
+"""
+struct MissingRootHref <: ArgumentShapeError
+    links::String
+end
+
+Base.showerror(io::IO, e::MissingRootHref) =
+    print(io, "`links = :", e.links, "` writes absolute links, so it needs `root_href`, the ",
+          "URL the tree will be published under. `links = :self_contained` needs none.")
+
+"""
     STAC.NotGeoJSONAsset(driver, package, href)
 
 [`STAC.read`](@ref) was given an asset that is not GeoJSON. `driver` names what does open it

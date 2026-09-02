@@ -1,0 +1,31 @@
+Two parquet files, both produced from ../static/absolute-published/ on 2026-09-02 by the
+Python libraries that define the formats. Neither is fetched at test time.
+
+items.parquet       stac-geoparquet 0.8.2, pyarrow 25.0.1
+
+    The four items of the static catalog, in the shape the stac-geoparquet specification
+    names: properties hoisted to top-level columns, `assets` one STRUCT whose fields are the
+    asset keys of the whole file, `links` a list of STRUCT, `bbox` a STRUCT of xmin/ymin/
+    xmax/ymax, and `geometry` WKB under the `geoarrow.wkb` Arrow extension type. The file
+    carries the two key-value metadata entries the format is read by, `geo` and
+    `stac-geoparquet`.
+
+        import json, glob, stac_geoparquet
+        items = [json.load(open(p)) for p in
+                 sorted(glob.glob("static/absolute-published/**/*.json", recursive=True))]
+        items = [i for i in items if i["type"] == "Feature"]
+        table = stac_geoparquet.arrow.parse_stac_items_to_arrow(items)
+        stac_geoparquet.arrow.to_parquet(table, "items.parquet")
+
+footprints.parquet  geopandas 1.1.4, shapely 2.1.2, pyarrow 25.0.1
+
+    The same four footprints as a flat GeoParquet table — id, datetime, geometry — which is
+    the shape a producer publishes as an *asset* of an item rather than as a catalog. It is
+    what test/geoparquet.jl opens through `STAC.read(asset)` and the GeoParquet.jl bridge.
+
+        gdf = geopandas.GeoDataFrame(rows, geometry=geoms, crs="EPSG:4326")
+        gdf.to_parquet("footprints.parquet")
+
+The four items carry, between them, every shape the reader has to survive: an item with no
+`collection`, two with a null `datetime` and a start/end pair instead, one with
+`eo:cloud_cover` and a `proj:` block, and asset keys that only some of the rows use.

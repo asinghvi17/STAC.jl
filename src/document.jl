@@ -65,16 +65,29 @@ function parse(doc::JSON.LazyValue, opts::ParseOptions)
 end
 
 """
+    STAC.rebuild(obj, Val(:field), value) -> obj
+
+`obj` with one field replaced. Only the outer struct is rebuilt; every other field is shared
+with the original, and the field is chosen at compile time, so this costs one allocation.
+
+```julia
+item = STAC.read("test/fixtures/stac-spec/simple-item.json")
+STAC.rebuild(item, Val(:links), STAC.Link[]).id == item.id    # true
+```
+"""
+@generated function rebuild(obj::T, ::Val{name}, value) where {T<:ComparedByFields,name}
+    i = findfirst(==(name), fieldnames(T))::Int
+    args = Any[j == i ? :value : :(getfield(obj, $j)) for j in 1:fieldcount(T)]
+    return Expr(:call, T, args...)
+end
+
+"""
     STAC.sethref(obj, href) -> obj
 
 `obj` with its origin set to `href`. Only the outer struct is rebuilt; every field is shared
 with the original.
 """
-@generated function sethref(obj::T, href::Union{String,Nothing}) where {T<:STACObject}
-    n = fieldcount(T)
-    args = Any[i == n ? :href : :(getfield(obj, $i)) for i in 1:n]
-    return Expr(:call, T, args...)
-end
+sethref(obj::STACObject, href::Union{String,Nothing}) = rebuild(obj, Val(:href), href)
 
 """
     STAC.read(href; io = STAC.default_io(), extensions, geometry, metadata)

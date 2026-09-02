@@ -11,7 +11,9 @@ adding a file, a method, or a test.
 `test/runtests.jl`.
 
 A file at the top of `src/` never repeats the name of a directory beside it: the document
-layer is `src/document.jl`, not `src/read.jl`, which would read as `src/io/`'s twin.
+layer is `src/document.jl`, not `src/read.jl`, which would read as `src/io/`'s twin, and the
+directory writer is `src/publish.jl`, not `src/write.jl`, which would read as
+`src/parse/write.jl`'s. The name says the job: this one publishes a catalog as a tree.
 
 | Directory | Holds |
 |---|---|
@@ -20,6 +22,8 @@ layer is `src/document.jl`, not `src/read.jl`, which would read as `src/io/`'s t
 | `src/document.jl` | `STAC.parse` and `STAC.read`: the `type` key choosing a struct, and `sethref` |
 | `src/extensions/` | `interface.jl` plus one file per shipped STAC extension |
 | `src/parse/` | the JSON style, its sinks, the writer, and `ParseOptions` |
+| `src/ndjson.jl` | `read_ndjson` and `write_ndjson`: one item per line |
+| `src/publish.jl` | `STAC.write`: one document, or a whole catalog as a directory tree |
 | `src/search/` | `interface.jl`: the search protocol and the request its keywords build; `backends.jl`: the API and static searches |
 | `src/io/` | the `AbstractIO` stack, auth, and href resolution: one wrapper per file |
 | `ext/` | weak-dependency bridges, one module per trigger package |
@@ -100,6 +104,7 @@ Fixtures are vendored, never fetched during a test run.
 | `test/fixtures/real-world/` | one recorded response per public endpoint, recorded once with `curl` |
 | `test/fixtures/static/` | one catalog published three ways, derived from the spec examples |
 | `test/fixtures/tokens/` | credential responses in the shape a service sends, with fixed expiries |
+| `test/fixtures/geoparquet/` | parquet files written by the Python libraries that define stac-geoparquet and GeoParquet |
 
 `stac-spec/` and `hand/` hold STAC documents alone: `test/write.jl` reads every `.json` under
 both and round-trips it, so anything else belongs in a directory of its own.

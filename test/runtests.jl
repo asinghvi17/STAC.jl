@@ -6,7 +6,7 @@ using Test, SafeTestsets
 const TESTS = ["aqua", "errors", "objects", "parse", "write", "extensions", "real_world",
                "resolve", "io", "traverse", "client", "search",
                "geo", "spatialindex", "static_search", "tables", "show", "makie",
-               "drivers", "auth", "rasters"]
+               "drivers", "auth", "rasters", "ndjson", "publish", "geoparquet"]
 
 selected(name) = isempty(ARGS) || name in ARGS
 

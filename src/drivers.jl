@@ -388,3 +388,55 @@ function route(::GeoJSONDriver, asset::Asset, io::AbstractIO)
 end
 
 route(asset::Asset, io::AbstractIO) = route(driver(asset), asset, io)
+
+# ---------------------------------------------------------------------------------------
+# stac-geoparquet
+
+"""
+    STAC.read_geoparquet(path; extensions, geometry, metadata) -> Vector{Item}
+
+The items of a [stac-geoparquet](https://github.com/stac-utils/stac-geoparquet) file, one per
+row, defined by DuckDB.jl. The keywords are [`ParseOptions`](@ref)'s.
+
+DuckDB does the reading because a stac-geoparquet row is nested: `assets` is a struct of
+structs and `links` a list of them, which SQL reads and a flat parquet reader does not.
+
+```julia
+using STAC, DuckDB
+
+items = STAC.read_geoparquet("test/fixtures/geoparquet/items.parquet")
+[i.id for i in items]                       # the ids the file carries
+items[1].extensions.eo.cloud_cover          # the typed extension slots are filled
+idx = spatialindex(items)
+```
+"""
+function read_geoparquet end
+
+"""
+    STAC.write_geoparquet(path, items) -> String
+
+`items` written to `path` as a [stac-geoparquet](https://github.com/stac-utils/stac-geoparquet)
+file, and the path it went to. Defined by DuckDB.jl.
+
+The file carries the two key-value metadata entries the format is read by: `geo`, naming the
+WKB geometry column, and `stac-geoparquet`, naming the specification version.
+
+```julia
+using STAC, DuckDB
+
+cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
+STAC.write_geoparquet("items.parquet", collect(items(cat; recursive = true)))
+```
+"""
+function write_geoparquet end
+
+# Dispatched on the driver for the reason `route` is: a bare `read_geoparquet(path)` in the
+# extension would be the same method as the fallback, and one would overwrite the other.
+read_geoparquet(path::AbstractString; kw...) = read_geoparquet(DuckDBDriver(), path; kw...)
+
+read_geoparquet(d::AbstractDriver, path::AbstractString; kw...) = _nodriverpackage(d, path)
+
+write_geoparquet(path::AbstractString, items) =
+    write_geoparquet(DuckDBDriver(), path, items)
+
+write_geoparquet(d::AbstractDriver, path::AbstractString, items) = _nodriverpackage(d, path)
