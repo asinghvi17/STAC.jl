@@ -90,3 +90,25 @@ end
     @test eltype(fc.features) == typeof(first(fc.features))
     @test fc.numberReturned == length(fc.features)
 end
+
+@testset "an ItemCollection wraps a vector of items" begin
+    fc = STAC.read(joinpath(REAL_DIR, "es.search.json"))
+    page = ItemCollection(fc.features)
+    @test page.features === fc.features
+    @test page.links == Link[]
+    @test page.numberMatched === nothing
+    @test page.numberReturned == length(fc.features)
+    @test page.metadata == Metadata()
+    @test page.href === nothing
+
+    # The metadata default is the empty tail of the item type's `M`, not `Metadata` always.
+    bare = STAC.read(joinpath(REAL_DIR, "es.search.json"); metadata = false)
+    @test ItemCollection(bare.features).metadata === NoMetadata()
+
+    full = ItemCollection(fc.features; links = fc.links, numberMatched = 42,
+                          numberReturned = 1, metadata = fc.metadata, href = "h")
+    @test full.links == fc.links
+    @test full.numberMatched == 42
+    @test full.numberReturned == 1
+    @test full.href == "h"
+end

@@ -1,7 +1,15 @@
 [deps]
+Extents = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
 GeoJSON = "61d90e0f-e114-555e-ac52-39dfb47a3ef9"
+IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 STAC = "bc6663c9-23f5-4e92-9ea2-fce884ff0bce"
+
+[compat]
+# GeometryOps reaches IntervalArithmetic through ExactPredicates, and from 0.22.30 on its
+# `__init__` ccalls a library named by a property of a JLL module. Trimming resolves no such
+# call, so the binary aborts before `main` runs; 0.22.23 sets its thread count without one.
+IntervalArithmetic = "=0.22.23"
 
 [sources]
 STAC = {path = "../.."}

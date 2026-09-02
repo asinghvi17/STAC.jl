@@ -1,0 +1,60 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "id": "bay-area",
+  "geometry": {
+    "coordinates": [
+      [
+        [
+          -123.0,
+          37.0
+        ],
+        [
+          -122.0,
+          37.0
+        ],
+        [
+          -122.0,
+          38.0
+        ],
+        [
+          -123.0,
+          38.0
+        ],
+        [
+          -123.0,
+          37.0
+        ]
+      ]
+    ],
+    "type": "Polygon"
+  },
+  "bbox": [
+    -123.0,
+    37.0,
+    -122.0,
+    38.0
+  ],
+  "properties": {
+    "datetime": "2024-06-05T00:00:00Z"
+  },
+  "collection": "mid",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "collection",
+      "href": "collection.json",
+      "type": "application/json"
+    }
+  ],
+  "assets": {}
+}

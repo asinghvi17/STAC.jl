@@ -1,0 +1,23 @@
+{
+  "type": "Catalog",
+  "stac_version": "1.1.0",
+  "id": "antimeridian-api",
+  "description": "The antimeridian catalog served as a STAC API",
+  "conformsTo": [
+    "https://api.stacspec.org/v1.0.0/core",
+    "https://api.stacspec.org/v1.0.0/item-search"
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://hand.example.com/api",
+      "type": "application/json"
+    },
+    {
+      "rel": "search",
+      "href": "https://hand.example.com/api/search",
+      "type": "application/geo+json",
+      "method": "POST"
+    }
+  ]
+}

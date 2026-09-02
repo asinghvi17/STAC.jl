@@ -1,0 +1,93 @@
+{
+  "type": "FeatureCollection",
+  "stac_version": "1.1.0",
+  "features": [
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "greenwich",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -1.0,
+              -1.0
+            ],
+            [
+              1.0,
+              -1.0
+            ],
+            [
+              1.0,
+              1.0
+            ],
+            [
+              -1.0,
+              1.0
+            ],
+            [
+              -1.0,
+              -1.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        -1.0,
+        -1.0,
+        1.0,
+        1.0
+      ],
+      "properties": {
+        "datetime": "2024-06-04T00:00:00Z"
+      },
+      "collection": "mid",
+      "links": [],
+      "assets": {}
+    },
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "outside-corner",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              1.5,
+              1.5
+            ],
+            [
+              5.0,
+              1.5
+            ],
+            [
+              5.0,
+              5.0
+            ],
+            [
+              1.5,
+              1.5
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        1.5,
+        1.5,
+        5.0,
+        5.0
+      ],
+      "properties": {
+        "datetime": "2024-06-06T00:00:00Z"
+      },
+      "collection": "mid",
+      "links": [],
+      "assets": {}
+    }
+  ],
+  "links": [],
+  "numberMatched": 2,
+  "numberReturned": 2
+}

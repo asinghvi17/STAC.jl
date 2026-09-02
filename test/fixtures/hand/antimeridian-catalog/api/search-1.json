@@ -1,0 +1,229 @@
+{
+  "type": "FeatureCollection",
+  "stac_version": "1.1.0",
+  "features": [
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "straddle",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              170.0,
+              60.0
+            ],
+            [
+              -170.0,
+              60.0
+            ],
+            [
+              -170.0,
+              70.0
+            ],
+            [
+              170.0,
+              70.0
+            ],
+            [
+              170.0,
+              60.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        170.0,
+        60.0,
+        -170.0,
+        70.0
+      ],
+      "properties": {
+        "datetime": "2024-06-01T00:00:00Z"
+      },
+      "collection": "edges",
+      "links": [],
+      "assets": {}
+    },
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "north-pole",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              0.0,
+              85.0
+            ],
+            [
+              90.0,
+              85.0
+            ],
+            [
+              180.0,
+              85.0
+            ],
+            [
+              -90.0,
+              85.0
+            ],
+            [
+              0.0,
+              85.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        -180.0,
+        85.0,
+        180.0,
+        90.0
+      ],
+      "properties": {
+        "datetime": "2024-06-02T00:00:00Z"
+      },
+      "collection": "edges",
+      "links": [],
+      "assets": {}
+    },
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "south-pole",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              0.0,
+              -85.0
+            ],
+            [
+              -90.0,
+              -85.0
+            ],
+            [
+              180.0,
+              -85.0
+            ],
+            [
+              90.0,
+              -85.0
+            ],
+            [
+              0.0,
+              -85.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        -180.0,
+        -90.0,
+        180.0,
+        -85.0
+      ],
+      "properties": {
+        "datetime": "2024-06-03T00:00:00Z"
+      },
+      "collection": "edges",
+      "links": [],
+      "assets": {}
+    },
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "greenwich",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -1.0,
+              -1.0
+            ],
+            [
+              1.0,
+              -1.0
+            ],
+            [
+              1.0,
+              1.0
+            ],
+            [
+              -1.0,
+              1.0
+            ],
+            [
+              -1.0,
+              -1.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        -1.0,
+        -1.0,
+        1.0,
+        1.0
+      ],
+      "properties": {
+        "datetime": "2024-06-04T00:00:00Z"
+      },
+      "collection": "mid",
+      "links": [],
+      "assets": {}
+    },
+    {
+      "type": "Feature",
+      "stac_version": "1.1.0",
+      "id": "bay-area",
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -123.0,
+              37.0
+            ],
+            [
+              -122.0,
+              37.0
+            ],
+            [
+              -122.0,
+              38.0
+            ],
+            [
+              -123.0,
+              38.0
+            ],
+            [
+              -123.0,
+              37.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "bbox": [
+        -123.0,
+        37.0,
+        -122.0,
+        38.0
+      ],
+      "properties": {
+        "datetime": "2024-06-05T00:00:00Z"
+      },
+      "collection": "mid",
+      "links": [],
+      "assets": {}
+    }
+  ],
+  "links": [],
+  "numberMatched": 5,
+  "numberReturned": 5
+}

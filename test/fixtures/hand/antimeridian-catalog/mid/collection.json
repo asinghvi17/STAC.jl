@@ -1,0 +1,59 @@
+{
+  "type": "Collection",
+  "stac_version": "1.1.0",
+  "id": "mid",
+  "description": "Footprints far from both",
+  "license": "proprietary",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -90.0,
+          180.0,
+          90.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2024-06-01T00:00:00Z",
+          "2024-06-07T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "links": [
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "item",
+      "href": "greenwich.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "bay-area.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "outside-corner.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "unlocated.json",
+      "type": "application/geo+json"
+    }
+  ]
+}

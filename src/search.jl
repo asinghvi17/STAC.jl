@@ -1,5 +1,5 @@
-# Item search. One protocol, `pages`, with the API backend here; Phase 4 adds the static
-# backend on the same contract.
+# Item search. One protocol, `pages`, with two backends on it: a STAC API, and a static
+# catalog walked and filtered in memory.
 
 """
     STAC.AbstractItemSearch
@@ -135,6 +135,71 @@ _intervalstop(s::AbstractString) = String(s)
 _intervalstop(dt::DateTime) = format_rfc3339(dt)
 _intervalstop(d::Date) = _dayend(d)
 
+"""
+    STAC.TimeInterval
+
+The window a static search keeps items inside: a start and a stop, either of them `nothing`
+for an open side.
+"""
+const TimeInterval = Tuple{Union{DateTime,Nothing},Union{DateTime,Nothing}}
+
+"""
+    STAC.datetime_interval(x) -> STAC.TimeInterval
+
+A `datetime` argument as the pair of instants a client-side filter compares against. This is
+the counterpart of [`STAC.normalize_datetime`](@ref), which sends the same argument to a
+server; both read a bare date as the whole day.
+"""
+datetime_interval(::Nothing) = (nothing, nothing)
+datetime_interval(dt::DateTime) = (dt, dt)
+datetime_interval(d::Date) = (DateTime(d), DateTime(d) + Day(1) - Millisecond(1))
+datetime_interval(t::Tuple{Any,Any}) = (_boundstart(t[1]), _boundstop(t[2]))
+
+datetime_interval(v::AbstractVector) =
+    (length(v) == 2 ? datetime_interval((v[1], v[2])) :
+     throw(ArgumentError("a `datetime` interval is two values, got " * string(length(v)))))
+
+function datetime_interval(s::AbstractString)
+    i = findfirst('/', s)
+    i === nothing && return (_boundstart(s), _boundstop(s))
+    return (_boundstart(SubString(s, 1, i - 1)), _boundstop(SubString(s, i + 1)))
+end
+
+_isopen(s::AbstractString) = isempty(s) || s == ".."
+_isdateonly(s::AbstractString) = length(s) == 10
+
+_boundstart(::Nothing) = nothing
+_boundstart(dt::DateTime) = dt
+_boundstart(d::Date) = DateTime(d)
+_boundstart(s::AbstractString) = _isopen(s) ? nothing : parse_rfc3339(s)
+
+_boundstop(::Nothing) = nothing
+_boundstop(dt::DateTime) = dt
+_boundstop(d::Date) = DateTime(d) + Day(1) - Millisecond(1)
+_boundstop(s::AbstractString) =
+    _isopen(s) ? nothing :
+    _isdateonly(s) ? parse_rfc3339(s) + Day(1) - Millisecond(1) : parse_rfc3339(s)
+
+"""
+    STAC.intimerange(item, interval::STAC.TimeInterval) -> Bool
+
+Whether an item falls in a search's window. An item with a `datetime` is one instant; an item
+with `start_datetime` and `end_datetime` is a span, and matches when the two spans overlap.
+An item that carries neither is outside every closed window.
+"""
+function intimerange(item::Item, interval::TimeInterval)
+    from, to = interval
+    (from === nothing && to === nothing) && return true
+    dt = item.properties.datetime
+    if dt !== nothing
+        return (from === nothing || dt >= from) && (to === nothing || dt <= to)
+    end
+    start, stop = item.properties.start_datetime, item.properties.end_datetime
+    (start === nothing && stop === nothing) && return false
+    (to === nothing || start === nothing || start <= to) || return false
+    return from === nothing || stop === nothing || stop >= from
+end
+
 @noinline _notgeometry(x) =
     throw(ArgumentError("`intersects` takes a GeoInterface geometry, an `Extent`, or a " *
                         "bbox of 4 or 6 numbers, not a " * string(typeof(x))))
@@ -207,6 +272,20 @@ function classify(v::Union{Tuple,AbstractVector})
 end
 
 classify(geom) = (:intersects, geojsonobject(geom))
+
+# A predicate travels to the server as its own geometry: `intersects` is the widest request
+# that can hold every item the predicate keeps, and the exact pass runs on what comes back.
+classify(p::DE9IM.DE9IMPredicate) = classify(parent(p))
+
+"""
+    STAC.predicate(intersects) -> Union{DE9IM.DE9IMPredicate,Nothing}
+
+The DE-9IM predicate an `intersects` argument carries, or `nothing` when it is a plain
+geometry, extent, or bbox. A search that has one runs it over every page it receives.
+"""
+predicate(::Any) = nothing
+predicate(p::DE9IM.DE9IMPredicate) =
+    parent(p) === nothing ? _nopredicategeometry(p) : p
 
 _stringlist(s::AbstractString) = String[String(s)]
 _stringlist(v) = String[String(x) for x in v]
@@ -281,8 +360,11 @@ withquery(href::AbstractString, query::AbstractString) =
 A search against a STAC API, as one prepared request plus the parse options its pages are
 read with. Build one with [`search`](@ref) or [`items`](@ref); iterate it for items, or
 [`pages`](@ref) it for whole [`ItemCollection`](@ref)s.
+
+`predicate` holds the DE-9IM predicate an `intersects =` argument carried, and every page is
+filtered through it on the sphere before the caller sees it.
 """
-struct APIItemSearch{I<:AbstractIO,O<:ParseOptions} <: AbstractItemSearch
+struct APIItemSearch{I<:AbstractIO,O<:ParseOptions,P} <: AbstractItemSearch
     io::I
     method::String
     href::String
@@ -290,9 +372,10 @@ struct APIItemSearch{I<:AbstractIO,O<:ParseOptions} <: AbstractItemSearch
     headers::RequestHeaders
     host::HostDefaults
     opts::O
+    predicate::P
 end
 
-Base.eltype(::Type{APIItemSearch{I,O}}) where {I,O} = itemtype(O)
+Base.eltype(::Type{<:APIItemSearch{I,O}}) where {I,O} = itemtype(O)
 
 const JSON_CONTENT_TYPE = "Content-Type" => "application/json"
 
@@ -307,7 +390,7 @@ struct PageIterator{S<:APIItemSearch}
 end
 
 Base.IteratorSize(::Type{<:PageIterator}) = Base.SizeUnknown()
-Base.eltype(::Type{PageIterator{APIItemSearch{I,O}}}) where {I,O} = itemcollectiontype(O)
+Base.eltype(::Type{<:PageIterator{<:APIItemSearch{I,O}}}) where {I,O} = itemcollectiontype(O)
 
 pages(s::APIItemSearch) = PageIterator(s)
 
@@ -332,7 +415,27 @@ function fetchpage(s::APIItemSearch, state::PageState)
     payload = state.body === nothing ? nothing : JSON.json(state.body; style = STACStyle())
     bytes = request(s.io, state.method, state.href; headers = hs, body = payload)
     page = JSON.parse(bytes, itemcollectiontype(s.opts); style = STACStyle())
-    return sethref(page, state.href)
+    return sethref(filterpage(s.predicate, page), state.href)
+end
+
+"""
+    STAC.filterpage(predicate, page::ItemCollection) -> ItemCollection
+
+`page` with only the items the predicate holds for, evaluated on the sphere. `numberMatched`
+stays as the endpoint reported it, since that is a property of the request rather than of
+what survived; `numberReturned` counts what is left.
+"""
+filterpage(::Nothing, page::ItemCollection) = page
+
+function filterpage(pred::DE9IM.DE9IMPredicate, page::ItemCollection)
+    alg = GO.RelateNG(GO.Spherical())
+    b = parent(pred)
+    kept = filter(page.features) do item
+        a = GI.geometry(item)
+        return a !== nothing && _holds(alg, pred, a, b)
+    end
+    return ItemCollection(kept; links = page.links, numberMatched = page.numberMatched,
+                          metadata = page.metadata, href = page.href)
 end
 
 """
@@ -465,11 +568,12 @@ function search(client::Client; collections = nothing, ids = nothing, intersects
     body = build_body(; collections, ids, intersects, datetime, query, filter, filter_lang,
                       sortby, fields, limit = searchlimit(client.host, limit))
     opts = ParseOptions(; extensions, geometry, metadata)
+    pred = predicate(intersects)
     verb = uppercase(method)
     href = requiredlink(client, "search"; method = verb)
     verb == "GET" && return APIItemSearch(client.io, "GET", withquery(href, querystring(body)),
-                                          nothing, NO_HEADERS, client.host, opts)
-    return APIItemSearch(client.io, verb, href, body, NO_HEADERS, client.host, opts)
+                                          nothing, NO_HEADERS, client.host, opts, pred)
+    return APIItemSearch(client.io, verb, href, body, NO_HEADERS, client.host, opts, pred)
 end
 
 """
@@ -488,5 +592,130 @@ function featuresearch(client::Client, href::AbstractString; ids = nothing, inte
                       limit = searchlimit(client.host, limit))
     opts = ParseOptions(; extensions, geometry, metadata)
     return APIItemSearch(client.io, "GET", withquery(href, querystring(body)), nothing,
-                         NO_HEADERS, client.host, opts)
+                         NO_HEADERS, client.host, opts, predicate(intersects))
 end
+
+# ---------------------------------------------------------------------------------------
+# The static backend
+
+"""
+    STAC.StaticItemSearch
+
+A search over a catalog on disk or on a plain web server, as the walk it will make plus the
+filters it will apply. It answers the same [`pages`](@ref) protocol as
+[`STAC.APIItemSearch`](@ref), so iteration, `Iterators.take`, and [`matched`](@ref) behave
+the same on both. Build one with [`search`](@ref).
+
+The walk, the filters, and the index run once, on the first page asked for, and the result
+is kept: `matched(s)` after `collect(s)` costs nothing.
+"""
+mutable struct StaticItemSearch{E,G,M,C,I<:AbstractIO,S,Mf<:GO.Manifold} <: AbstractItemSearch
+    root::C
+    io::I
+    opts::ParseOptions{E,G,M}
+    collections::Union{Vector{String},Nothing}
+    ids::Union{Vector{String},Nothing}
+    interval::TimeInterval
+    spatial::S
+    manifold::Mf
+    limit::Int
+    cache::Union{Nothing,Vector{Item{E,G,M}}}
+end
+
+Base.eltype(::Type{<:StaticItemSearch{E,G,M}}) where {E,G,M} = Item{E,G,M}
+
+function _selects(s::StaticItemSearch, item::Item)
+    if s.collections !== nothing
+        (item.collection !== nothing && item.collection in s.collections) || return false
+    end
+    s.ids === nothing || item.id in s.ids || return false
+    return intimerange(item, s.interval)
+end
+
+"""
+    STAC.staticitems(s::StaticItemSearch) -> Vector{Item}
+
+Every item the search matches, in catalog order. The first call walks the catalog — one
+request per document reached — filters by collection, id, and time, then runs the spatial
+argument against an index of what is left; later calls read the kept vector.
+"""
+function staticitems(s::StaticItemSearch{E,G,M}) where {E,G,M}
+    s.cache === nothing || return s.cache
+    kept = Item{E,G,M}[]
+    for item in items(s.root, s.opts; io = s.io, recursive = true)
+        _selects(s, item) && push!(kept, item)
+    end
+    hits = query(spatialindex(s.manifold, kept), s.spatial)
+    s.cache = kept[hits]
+    return s.cache
+end
+
+matched(s::StaticItemSearch) = length(staticitems(s))
+
+"""
+    STAC.StaticPages
+
+The pages of a [`STAC.StaticItemSearch`](@ref): the matching items cut into chunks of
+`limit`, each one an [`ItemCollection`](@ref) reporting the exact total.
+"""
+struct StaticPages{S<:StaticItemSearch}
+    search::S
+end
+
+Base.IteratorSize(::Type{<:StaticPages}) = Base.SizeUnknown()
+Base.eltype(::Type{<:StaticPages{<:StaticItemSearch{E,G,M}}}) where {E,G,M} =
+    ItemCollection{E,G,M}
+
+pages(s::StaticItemSearch) = StaticPages(s)
+
+# A search that matches nothing still yields one empty page, as one request against an API
+# would, so `first(pages(s))` is always a page.
+function Base.iterate(p::StaticPages, i::Int = 1)
+    its = staticitems(p.search)
+    (i > 1 && i > length(its)) && return nothing
+    stop = min(i + p.search.limit - 1, length(its))
+    chunk = its[i:stop]
+    page = ItemCollection(chunk; numberMatched = length(its), href = p.search.root.href)
+    return page, max(i, stop) + 1
+end
+
+"""
+    search(catalog; collections, ids, intersects, datetime, limit, manifold, io,
+           extensions, geometry, metadata) -> STAC.StaticItemSearch
+    search(catalog, opts::ParseOptions; …)
+
+A search over a static [`Catalog`](@ref) or [`Collection`](@ref), with the spatial and
+temporal keywords [`search(client; …)`](@ref search) takes. Nothing is fetched until the
+result is iterated.
+
+| Keyword | Takes |
+|---|---|
+| `collections`, `ids` | a string or a list of strings |
+| `intersects` | a GeoInterface geometry, an `Extents.Extent`, a bbox of 4 or 6 numbers, a `SphericalCap`, or a DE-9IM predicate wrapping any of those |
+| `datetime` | see [`STAC.datetime_interval`](@ref) |
+| `limit` | the page size; the spec's default of 100 when omitted |
+| `manifold` | `Spherical()` (the default) or `Planar()`, the space the index is built in |
+| `io` | the [`AbstractIO`](@ref STAC.AbstractIO) the walk fetches through |
+| `extensions`, `geometry`, `metadata` | [`ParseOptions`](@ref)'s, fixing the item type |
+
+```julia
+cat = STAC.read("catalog.json")
+s = search(cat; collections = ["simple-collection"],
+           intersects = Extent(X = (170, -170), Y = (60, 70)))
+matched(s)                       # exact: the filtered set is in memory
+```
+"""
+function search(obj::Union{Catalog,Collection}, opts::ParseOptions; collections = nothing,
+                ids = nothing, intersects = nothing, datetime = nothing, limit = nothing,
+                manifold::GO.Manifold = GO.Spherical(), io::AbstractIO = default_io())
+    return StaticItemSearch(obj, io, opts,
+                            collections === nothing ? nothing : _stringlist(collections),
+                            ids === nothing ? nothing : _stringlist(ids),
+                            datetime_interval(datetime), intersects, manifold,
+                            limit === nothing ? GENERIC_HOST.default_limit : max(1, Int(limit)),
+                            nothing)
+end
+
+search(obj::Union{Catalog,Collection}; extensions = DEFAULT_EXTENSIONS,
+       geometry = DEFAULT_GEOMETRY, metadata = true, kw...) =
+    search(obj, ParseOptions(; extensions, geometry, metadata); kw...)

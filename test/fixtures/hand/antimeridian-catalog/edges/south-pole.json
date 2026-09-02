@@ -1,0 +1,60 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "id": "south-pole",
+  "geometry": {
+    "coordinates": [
+      [
+        [
+          0.0,
+          -85.0
+        ],
+        [
+          -90.0,
+          -85.0
+        ],
+        [
+          180.0,
+          -85.0
+        ],
+        [
+          90.0,
+          -85.0
+        ],
+        [
+          0.0,
+          -85.0
+        ]
+      ]
+    ],
+    "type": "Polygon"
+  },
+  "bbox": [
+    -180.0,
+    -90.0,
+    180.0,
+    -85.0
+  ],
+  "properties": {
+    "datetime": "2024-06-03T00:00:00Z"
+  },
+  "collection": "edges",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "collection",
+      "href": "collection.json",
+      "type": "application/json"
+    }
+  ],
+  "assets": {}
+}

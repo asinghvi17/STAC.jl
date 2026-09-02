@@ -13,9 +13,12 @@ using StructUtils
 using OrderedCollections: OrderedDict
 using LRUCache: LRU
 
+import DE9IM
 import Extents
+import GeoFormatTypes
 import GeoInterface as GI
 import GeoJSON
+import GeometryOps as GO
 import HTTP
 import ScopedValues
 import URIs
@@ -39,6 +42,8 @@ include("io/router.jl")
 include("io/default.jl")
 include("traverse.jl")
 include("read.jl")
+include("geo.jl")
+include("spatialindex.jl")
 include("client.jl")
 include("search.jl")
 
@@ -47,5 +52,6 @@ export Asset, Band, Catalog, Collection, CollectionExtent, Item, ItemCollection,
 export EO, Projection
 export AbstractIO, BearerToken, CachingIO, HTTPIO, NoAuth, PathIO, StreamRouterIO
 export Client, children, collections, items, matched, pages, search
+export SpatialIndex, spatialindex
 
 end # module STAC

@@ -60,5 +60,20 @@ else
                 @test split(strip(out), '\n') == ["hand-1", "examples", "simple-collection"]
             end
         end
+
+        @testset "search_index.jl builds under --trim=safe" begin
+            exe, ok, log = build("search_index.jl", outdir)
+            @test !occursin("Verifier error", log)
+            @test ok
+            ok || println(log)
+
+            if ok
+                out = read(`$exe $(joinpath(FIXTURES, "hand", "antimeridian-catalog",
+                                            "catalog.json"))`, String)
+                # The catalog's id, the one item the search across the antimeridian finds,
+                # and the one hit the index reports for the same box.
+                @test split(strip(out), '\n') == ["antimeridian", "straddle", "1"]
+            end
+        end
     end
 end

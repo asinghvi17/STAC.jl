@@ -24,12 +24,14 @@ const STATIC_CHILD_IDS = ["simple-collection", "empty-collection"]
 """
     jsonfiles(dir) -> Vector{String}
 
-Every `.json` document under `dir`, sorted, with the vendoring note left out.
+Every STAC document under `dir`, sorted. The `requests.json` manifest that tells
+[`FixtureIO`](@ref) which recording answers which request is left out, being a description of
+a fixture rather than one.
 """
 function jsonfiles(dir)
     paths = String[]
     for (root, _, files) in walkdir(dir), f in files
-        endswith(f, ".json") && push!(paths, joinpath(root, f))
+        (endswith(f, ".json") && f != "requests.json") && push!(paths, joinpath(root, f))
     end
     return sort!(paths)
 end

@@ -1,0 +1,55 @@
+{
+  "url": "https://hand.example.com/api",
+  "requests": [
+    {
+      "method": "GET",
+      "href": "https://hand.example.com/api",
+      "response": "root.json"
+    },
+    {
+      "method": "POST",
+      "href": "https://hand.example.com/api/search",
+      "body": {
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 10
+      },
+      "response": "search-1.json"
+    },
+    {
+      "method": "POST",
+      "href": "https://hand.example.com/api/search",
+      "body": {
+        "intersects": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -2.0,
+                -2.0
+              ],
+              [
+                2.0,
+                -2.0
+              ],
+              [
+                2.0,
+                2.0
+              ],
+              [
+                -2.0,
+                2.0
+              ],
+              [
+                -2.0,
+                -2.0
+              ]
+            ]
+          ]
+        },
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 10
+      },
+      "response": "search-2.json"
+    }
+  ]
+}

@@ -187,9 +187,21 @@ end
 
 """
     ItemCollection{E,G,M}
+    ItemCollection(features; links, numberMatched, numberReturned, metadata, href)
 
 One page of a search, or any GeoJSON FeatureCollection of STAC items. `numberMatched` and
 `numberReturned` are filled by the endpoints that report them.
+
+The keyword form wraps a vector of items — `ItemCollection(items)` is a page of them and
+nothing else. Each keyword defaults to what a hand-built collection carries:
+
+| keyword | default |
+| --- | --- |
+| `links` | `Link[]` |
+| `numberMatched` | `nothing`, since only the endpoint that ran the query knows the total |
+| `numberReturned` | `length(features)` |
+| `metadata` | the empty tail of `M`, so [`STAC.json`](@ref) writes no extra keys |
+| `href` | `nothing` |
 """
 struct ItemCollection{E,G,M}
     features::Vector{Item{E,G,M}}
@@ -198,6 +210,14 @@ struct ItemCollection{E,G,M}
     numberReturned::Union{Int,Nothing}
     metadata::M
     href::Union{String,Nothing}
+end
+
+function ItemCollection(features::AbstractVector{Item{E,G,M}}; links::Vector{Link} = Link[],
+                        numberMatched::Union{Int,Nothing} = nothing,
+                        numberReturned::Union{Int,Nothing} = length(features),
+                        metadata::M = M(), href::Union{String,Nothing} = nothing) where {E,G,M}
+    return ItemCollection{E,G,M}(features, links, numberMatched, numberReturned, metadata,
+                                 href)
 end
 
 """

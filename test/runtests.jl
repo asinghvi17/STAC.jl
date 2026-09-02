@@ -4,7 +4,8 @@ using Test, SafeTestsets
 # subset; with no arguments every file runs, and the `--trim=safe` programs under
 # `test/compile/` run when they are named or `STAC_COMPILE_TESTS=1` is set.
 const TESTS = ["aqua", "objects", "parse", "write", "extensions", "real_world",
-               "resolve", "io", "traverse", "client", "search"]
+               "resolve", "io", "traverse", "client", "search",
+               "geo", "spatialindex", "static_search", "makie"]
 
 selected(name) = isempty(ARGS) || name in ARGS
 

@@ -4,15 +4,30 @@
 
 @noinline _notyped() = throw(ArgumentError("not a STAC document: no `type` key"))
 
+struct DocTypeSink{S}
+    style::S
+end
+
+(f::DocTypeSink)(k::Integer, v) = nothing
+
+function (f::DocTypeSink)(k, v)
+    k == "type" || return nothing
+    return StructUtils.EarlyReturn(JSON.parse(v, String; style = f.style))
+end
+
 """
     STAC.doctype(doc::JSON.LazyValue) -> String
 
 The value of a document's `type` key, which is what selects the struct a parse targets.
+
+The scan is a callable sink for the reason the parse sinks are: `applyeach` forwards its
+function argument, and a closure there compiles unspecialized.
 """
 function doctype(doc::JSON.LazyValue)
-    t = get(doc, :type, nothing)
-    t === nothing && _notyped()
-    return t[]::String
+    style = STACStyle()
+    ret = StructUtils.applyeach(style, DocTypeSink(style), doc)
+    ret isa StructUtils.EarlyReturn || _notyped()
+    return ret.value::String
 end
 
 """
