@@ -4,7 +4,7 @@ Extents = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
 GeoJSON = "61d90e0f-e114-555e-ac52-39dfb47a3ef9"
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-STAC = "bc6663c9-23f5-4e92-9ea2-fce884ff0bce"
+STAC = "08e62803-e111-4f53-be9b-274ff296e9da"
 
 [compat]
 # GeometryOps reaches IntervalArithmetic through ExactPredicates, and from 0.22.30 on its
