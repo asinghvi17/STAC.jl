@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -45,7 +45,7 @@ julia> [relpath(p, joinpath(dir, "tree"))
  "simple-collection/extended-item/extended-item.json"
  "simple-collection/simple-item/simple-item.json"
 
-julia> [i.id for i in items(STAC.read(out); recursive = true)]
+julia> [i.id for i in STAC.items(STAC.read(out); recursive = true)]
 4-element Vector{String}:
  "collectionless-item"
  "simple-item"
@@ -102,7 +102,7 @@ usually handed around. The reader is lazy: `first` reads one line, and a corrupt
 iteration never reaches costs nothing.
 
 ```jldoctest formats
-julia> STAC.write_ndjson(joinpath(dir, "items.ndjson"), items(cat; recursive = true))
+julia> STAC.write_ndjson(joinpath(dir, "items.ndjson"), STAC.items(cat; recursive = true))
 4
 
 julia> lines = STAC.read_ndjson(joinpath(dir, "items.ndjson"));
@@ -133,7 +133,7 @@ puts it back together, so the reader needs DuckDB rather than a flat parquet rea
 julia> using DuckDB
 
 julia> path = STAC.write_geoparquet(joinpath(dir, "items.parquet"),
-                                    collect(items(cat; recursive = true)));
+                                    collect(STAC.items(cat; recursive = true)));
 
 julia> back = STAC.read_geoparquet(path);
 
@@ -171,10 +171,11 @@ footprint set or a field boundary file — reads once `import GeoParquet` has gi
 [`STAC.route`](@ref) that row:
 
 ```julia
-using STAC, GeoParquet
+import STAC
+using GeoParquet
 
-asset = Asset(abspath("footprints.parquet"), "application/vnd.apache.parquet",
-              nothing, nothing, ["data"], nothing, NoMetadata())
+asset = STAC.Asset(abspath("footprints.parquet"), "application/vnd.apache.parquet",
+                   nothing, nothing, ["data"], nothing, STAC.NoMetadata())
 df = STAC.read(asset)       # a GeoParquet.jl GeoDataFrame
 ```
 

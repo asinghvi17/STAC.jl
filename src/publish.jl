@@ -281,7 +281,7 @@ the new location.
 cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
 STAC.write("out", cat)                                       # "out/catalog.json"
 STAC.write("out", cat; links = :absolute_published, root_href = "https://example.com/out/")
-STAC.write("out/one-item.json", first(items(cat)))
+STAC.write("out/one-item.json", first(STAC.items(cat)))
 ```
 """
 write(dest::AbstractString, obj::STACObject; layout = :best, links::Symbol = :self_contained,

@@ -23,7 +23,7 @@ STAC.rewrite(a::QueryToken, href::AbstractString) = href * "?token=" * a.token
 STAC.rewrite(QueryToken("abc"), "https://example.com/catalog.json")
 # "https://example.com/catalog.json?token=abc"
 
-HTTPIO(QueryToken("abc"))       # the transport that signs every href
+STAC.HTTPIO(QueryToken("abc"))  # the transport that signs every href
 ```
 """
 abstract type AbstractAuth end
@@ -44,13 +44,13 @@ other auth returns `href` unchanged.
 rewrite(::AbstractAuth, href::AbstractString) = String(href)
 
 """
-    NoAuth()
+    STAC.NoAuth()
 
 Anonymous access: no headers, no rewriting. The default of every stack
 [`STAC.default_io`](@ref) builds.
 
 ```julia
-STAC.headers(NoAuth(), "https://example.com")   # Pair{String,String}[]
+STAC.headers(STAC.NoAuth(), "https://example.com")   # Pair{String,String}[]
 ```
 """
 struct NoAuth <: AbstractAuth end
@@ -58,13 +58,13 @@ struct NoAuth <: AbstractAuth end
 headers(::NoAuth, ::AbstractString) = NO_HEADERS
 
 """
-    BearerToken(token)
+    STAC.BearerToken(token)
 
 `Authorization: Bearer <token>` on every request. [`STAC.Headers`](@ref) covers an endpoint
 that wants a differently named header.
 
 ```julia
-STAC.headers(BearerToken("s3cret"), "https://example.com")
+STAC.headers(STAC.BearerToken("s3cret"), "https://example.com")
 # ["Authorization" => "Bearer s3cret"]
 ```
 
@@ -77,8 +77,8 @@ end
 headers(a::BearerToken, ::AbstractString) = RequestHeaders(["Authorization" => "Bearer " * a.token])
 
 """
-    Headers(pairs)
-    Headers("X-Api-Key" => "…", …)
+    STAC.Headers(pairs)
+    STAC.Headers("X-Api-Key" => "…", …)
 
 A fixed header list added to every request, for the endpoints whose credential is neither a
 bearer token nor a signed URL.
@@ -86,7 +86,7 @@ bearer token nor a signed URL.
 ```julia
 auth = STAC.Headers("X-Api-Key" => "k", "X-Tenant" => "acme")
 STAC.headers(auth, "https://example.com")   # ["X-Api-Key" => "k", "X-Tenant" => "acme"]
-HTTPIO(auth)                                # the transport that sends them
+STAC.HTTPIO(auth)                           # the transport that sends them
 ```
 """
 struct Headers <: AbstractAuth
@@ -121,10 +121,10 @@ The default turns whatever `headers` returns into one `GDAL_HTTP_HEADERS` option
 separated as GDAL wants it, so an auth that signs with headers needs no method here:
 
 ```julia
-STAC.gdal_config(BearerToken("s3cret"), "https://example.com/b.tif")
+STAC.gdal_config(STAC.BearerToken("s3cret"), "https://example.com/b.tif")
 # ["GDAL_HTTP_HEADERS" => "Authorization: Bearer s3cret"]
 
-STAC.gdal_config(NoAuth(), "https://example.com/b.tif")     # Pair{String,String}[]
+STAC.gdal_config(STAC.NoAuth(), "https://example.com/b.tif")     # Pair{String,String}[]
 ```
 
 An auth that signs the href itself, [`PlanetaryComputerSAS`](@ref) among them, has nothing to
@@ -152,8 +152,8 @@ const PC_BLOB_HOST = ".blob.core.windows.net"
 @noinline _notoken(url) = throw(NoToken(String(url)))
 
 """
-    PlanetaryComputerSAS(; subscription_key = nothing, url = STAC.PC_SAS_URL, io = HTTPIO(),
-                         margin = Minute(5))
+    STAC.PlanetaryComputerSAS(; subscription_key = nothing, url = STAC.PC_SAS_URL,
+                              io = STAC.HTTPIO(), margin = Minute(5))
 
 Signs a Microsoft Planetary Computer blob href with a shared access signature, one token per
 storage account and container, held until it expires.
@@ -175,13 +175,13 @@ every other href unchanged, so one stack can sign Planetary Computer assets and 
 anonymous for the rest:
 
 ```julia
-auth = PlanetaryComputerSAS()
+auth = STAC.PlanetaryComputerSAS()
 STAC.rewrite(auth, "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/x/B04.tif")
 # "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/x/B04.tif?st=…&se=…&sig=…"
 
 STAC.rewrite(auth, "s3://usgs-landsat/collection02/B4.TIF")   # unchanged
 
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1"; auth)
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1"; auth)
 ```
 """
 struct PlanetaryComputerSAS{I<:AbstractIO} <: AbstractAuth
@@ -300,7 +300,7 @@ naming the hosts it does answer under.
 const EARTHDATA_HOSTS = (".nasa.gov",)
 
 """
-    EarthdataLogin(token)
+    STAC.EarthdataLogin(token)
 
 `Authorization: Bearer <token>` for NASA Earthdata hosts, both on this package's own requests
 and, through [`STAC.gdal_config`](@ref), on the ones GDAL makes for an asset.
@@ -308,12 +308,12 @@ and, through [`STAC.gdal_config`](@ref), on the ones GDAL makes for an asset.
 Mint the token at <https://urs.earthdata.nasa.gov/profile>, under "Generate Token".
 
 ```julia
-auth = EarthdataLogin(ENV["EARTHDATA_TOKEN"])
+auth = STAC.EarthdataLogin(ENV["EARTHDATA_TOKEN"])
 STAC.headers(auth, "https://data.lpdaac.earthdatacloud.nasa.gov/x/B04.tif")
 # ["Authorization" => "Bearer …"]
 STAC.headers(auth, "https://example.com/b.tif")   # Pair{String,String}[]
 
-client = Client("https://cmr.earthdata.nasa.gov/stac/LPCLOUD"; auth)
+client = STAC.Client("https://cmr.earthdata.nasa.gov/stac/LPCLOUD"; auth)
 ```
 """
 struct EarthdataLogin <: AbstractAuth

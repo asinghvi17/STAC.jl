@@ -1,6 +1,6 @@
 """
-    StreamRouterIO(routes::Tuple)
-    StreamRouterIO("https" => HTTPIO(), "" => PathIO())
+    STAC.StreamRouterIO(routes::Tuple)
+    STAC.StreamRouterIO("https" => STAC.HTTPIO(), "" => STAC.PathIO())
 
 The [`AbstractIO`](@ref STAC.AbstractIO) that picks a child by the href's scheme, with `""`
 meaning a local path. Routing per href rather than per catalog is what lets a catalog on
@@ -10,7 +10,7 @@ The routes are a tuple, so each `read` resolves to one child's method at compile
 is what `--trim=safe` needs.
 
 ```julia
-io = StreamRouterIO("https" => HTTPIO(), "" => PathIO())
+io = STAC.StreamRouterIO("https" => STAC.HTTPIO(), "" => STAC.PathIO())
 STAC.read("test/fixtures/stac-spec/catalog.json"; io)      # the "" route
 STAC.read("https://stac.itslive.cloud/"; io)               # the "https" one
 ```

@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -17,7 +17,7 @@ julia> using GeoInterface, Extents
 
 julia> examples = joinpath(pkgdir(STAC), "test", "fixtures", "static", "self-contained");
 
-julia> its = collect(items(STAC.read(joinpath(examples, "catalog.json")); recursive = true));
+julia> its = collect(STAC.items(STAC.read(joinpath(examples, "catalog.json")); recursive = true));
 
 julia> GeoInterface.isfeature(eltype(its)), GeoInterface.trait(its[2])
 (true, FeatureTrait())
@@ -141,7 +141,8 @@ Makie draws an item as its geometry and a page of items as the vector of them. T
 arrive with `using Makie` (or GeoMakie, or CairoMakie):
 
 ```julia
-using STAC, GeoMakie
+import STAC
+using GeoMakie
 
 fig, ax, plt = poly(its; color = [i.properties.gsd for i in its], axis = (; aspect = DataAspect()))
 lines!(ax, its)

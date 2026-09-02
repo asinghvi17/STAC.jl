@@ -48,8 +48,8 @@ keyed by each struct's [`STAC.prefix`](@ref), with `Union{T,Nothing}` values so 
 carries none of an extension's keys reports `nothing`.
 
 ```jldoctest
-julia> STAC.extensiontype((EO, Projection))
-@NamedTuple{eo::Union{Nothing, EO}, proj::Union{Nothing, Projection}}
+julia> STAC.extensiontype((STAC.EO, STAC.Projection))
+@NamedTuple{eo::Union{Nothing, STAC.EO}, proj::Union{Nothing, STAC.Projection}}
 ```
 
 An empty tuple gives `Any`, the dynamic form in which every prefixed key stays in
@@ -121,20 +121,20 @@ the constructor form throws instead.
 
 | Call | Source |
 |---|---|
-| `item.extensions.eo` | the eager field, when `extensions =` named `EO` |
-| `get(item, EO)` | that field when it exists, else a lookup in `properties.other` |
-| `EO(item)` | the same, throwing when the item carries no `eo:` key |
-| `Projection(asset)` | a lookup in the asset's own metadata |
+| `item.extensions.eo` | the eager field, when `extensions =` named `STAC.EO` |
+| `get(item, STAC.EO)` | that field when it exists, else a lookup in `properties.other` |
+| `STAC.EO(item)` | the same, throwing when the item carries no `eo:` key |
+| `STAC.Projection(asset)` | a lookup in the asset's own metadata |
 
 An item parsed with `metadata = false` kept no tail, so a lookup on one finds nothing: the
 keys were dropped at parse time rather than being absent from the document.
 
 ```julia
-item = STAC.read("test/fixtures/stac-spec/extended-item.json"; extensions = (EO,))
+item = STAC.read("test/fixtures/stac-spec/extended-item.json"; extensions = (STAC.EO,))
 item.extensions.eo.cloud_cover    # 1.2, the eager field
-get(item, View)                   # View(3.8, …), read from the tail
-View(item).off_nadir              # 3.8, or a `STAC.MissingExtension` if there is none
-get(item, Sat) === nothing        # true: the item carries no `sat:` key
+get(item, STAC.View)              # STAC.View(3.8, …), read from the tail
+STAC.View(item).off_nadir         # 3.8, or a `STAC.MissingExtension` if there is none
+get(item, STAC.Sat) === nothing   # true: the item carries no `sat:` key
 ```
 """
 Base.get(item::Item{E}, ::Type{T}) where {E,T<:Extension} =
@@ -161,14 +161,14 @@ its `stac_extensions`. The version segment of the schema URI is ignored, as pyst
 an item declaring `eo/v1.1.0` declares [`EO`](@ref) even though this package types the
 2.0.0 fields.
 
-Declaring an extension and carrying its keys are different questions: `declares` reads the
-list, `get(obj, T)` reads the keys. Producers get both wrong in both directions.
+Declaring an extension and carrying its keys are different questions: `STAC.declares` reads
+the list, `get(obj, T)` reads the keys. Producers get both wrong in both directions.
 
 ```julia
 item = STAC.read("test/fixtures/stac-spec/extended-item.json")
-STAC.declares(item, EO)                 # true, even though the item lists eo v2.0.0
-STAC.declares(item, STAC.schema(EO))    # the same question, asked by URI
-STAC.declares(item, Sat)                # false: `stac_extensions` never names it
+STAC.declares(item, STAC.EO)                 # true, even though the item lists eo v2.0.0
+STAC.declares(item, STAC.schema(STAC.EO))    # the same question, asked by URI
+STAC.declares(item, STAC.Sat)                # false: `stac_extensions` never names it
 ```
 """
 declares(obj, ::Type{T}) where {T<:Extension} = declares(obj, schema(T))

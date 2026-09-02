@@ -1,7 +1,7 @@
 # The stack every call that takes no `io` uses, and the scoped value that holds it.
 
 """
-    STAC.defaultstack(auth = NoAuth()) -> AbstractIO
+    STAC.defaultstack(auth = STAC.NoAuth()) -> AbstractIO
 
 A fresh copy of the stack [`STAC.default_io`](@ref) returns: an LRU cache over a scheme
 router that sends `https` and `http` to an [`HTTPIO`](@ref STAC.HTTPIO) carrying `auth` and
@@ -34,7 +34,8 @@ default_io() = DEFAULT_IO[]
 Run `f()` with `io` as [`STAC.default_io`](@ref).
 
 ```julia
-STAC.with(CachingIO(StreamRouterIO(("https" => HTTPIO(BearerToken(tok)),)))) do
+stack = STAC.CachingIO(STAC.StreamRouterIO(("https" => STAC.HTTPIO(STAC.BearerToken(tok)),)))
+STAC.with(stack) do
     STAC.read("https://example.com/catalog.json")
 end
 ```

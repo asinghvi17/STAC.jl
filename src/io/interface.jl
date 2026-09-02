@@ -59,9 +59,9 @@ asks the stack for the auth, and then asks the auth to sign the href and to name
 options GDAL will need.
 
 ```julia
-STAC.authfor(STAC.defaultstack(BearerToken("s3cret")), "https://example.com/b.tif")
-# BearerToken("s3cret")
-STAC.authfor(STAC.defaultstack(BearerToken("s3cret")), "/data/b.tif")   # NoAuth()
+STAC.authfor(STAC.defaultstack(STAC.BearerToken("s3cret")), "https://example.com/b.tif")
+# STAC.BearerToken("s3cret")
+STAC.authfor(STAC.defaultstack(STAC.BearerToken("s3cret")), "/data/b.tif")   # STAC.NoAuth()
 ```
 """
 authfor(::AbstractIO, ::AbstractString) = NoAuth()

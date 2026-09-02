@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -64,7 +64,7 @@ julia> item.properties.platform, item.properties.gsd
 ("cool_sat2", 0.66)
 
 julia> keys(item.assets)
-KeySet for a OrderedCollections.OrderedDict{String, Asset} with 6 entries. Keys:
+KeySet for a OrderedCollections.OrderedDict{String, STAC.Asset} with 6 entries. Keys:
   "analytic"
   "thumbnail"
   "visual"
@@ -136,19 +136,19 @@ are lazy iterators over `rel`-filtered links. Nothing is fetched until an elemen
 so `length` costs no request and `first` costs exactly one.
 
 ```jldoctest objects
-julia> length(children(cat))            # from the link count, before any request
+julia> length(STAC.children(cat))       # from the link count, before any request
 2
 
-julia> [c.id for c in children(cat)]
+julia> [c.id for c in STAC.children(cat)]
 2-element Vector{String}:
  "simple-collection"
  "empty-collection"
 
-julia> [i.id for i in items(cat)]       # the catalog's own `item` links
+julia> [i.id for i in STAC.items(cat)]  # the catalog's own `item` links
 1-element Vector{String}:
  "collectionless-item"
 
-julia> [i.id for i in items(cat; recursive = true)]   # and every descendant's
+julia> [i.id for i in STAC.items(cat; recursive = true)]   # and every descendant's
 4-element Vector{String}:
  "collectionless-item"
  "simple-item"
@@ -159,6 +159,9 @@ julia> parent(col).id, STAC.root(col).id
 ("examples", "examples")
 ```
 
+`parent` is `Base.parent` with a method for STAC objects, so it takes no prefix. Every name
+this package owns takes one.
+
 A relative href resolves against the origin of the object whose `links` it came from, per
 RFC 3986, which is what makes the spec's publishing layouts read the same way. Two of the
 three are local trees and read from a path:
@@ -166,7 +169,8 @@ three are local trees and read from a path:
 ```jldoctest objects
 julia> layouts = joinpath(pkgdir(STAC), "test", "fixtures", "static");
 
-julia> [length(collect(items(STAC.read(joinpath(layouts, l, "catalog.json")); recursive = true)))
+julia> [length(collect(STAC.items(STAC.read(joinpath(layouts, l, "catalog.json"));
+                                  recursive = true)))
         for l in ("self-contained", "relative-published")]
 2-element Vector{Int64}:
  4
@@ -199,7 +203,7 @@ julia> bare = STAC.read(joinpath(examples, "simple-collection", "core-item.json"
                         extensions = (), metadata = false);
 
 julia> typeof(bare).parameters[1], typeof(bare).parameters[3]
-(Any, NoMetadata)
+(Any, STAC.NoMetadata)
 
 julia> isempty(bare.metadata)
 true

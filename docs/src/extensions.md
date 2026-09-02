@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -35,33 +35,33 @@ julia> item = STAC.read(joinpath(examples, "simple-collection", "extended-item.j
 julia> item.extensions.eo.cloud_cover           # the eager field: one `Float64` load
 1.2
 
-julia> get(item, EO).cloud_cover                # the same, without knowing the type parameter
+julia> get(item, STAC.EO).cloud_cover           # the same, without knowing the type parameter
 1.2
 
-julia> EO(item).cloud_cover                     # the same again, throwing when absent
+julia> STAC.EO(item).cloud_cover                # the same again, throwing when absent
 1.2
 
-julia> get(item, Sat) === nothing               # this item carries no `sat:` key
+julia> get(item, STAC.Sat) === nothing          # this item carries no `sat:` key
 true
 ```
 
 | Way | Reads from | Use when |
 |---|---|---|
 | `item.extensions.eo` | the eager field | the extension was named in `extensions =`; type stable, and the path a `--trim=safe` program sees |
-| `get(item, EO)` | that field when it exists, else `properties.other` | the code does not know whether this item carries it |
-| `EO(item)` | the same as `get`, raising a [`STAC.MissingExtension`](@ref) instead of reporting `nothing` | the extension is required for what follows |
+| `get(item, STAC.EO)` | that field when it exists, else `properties.other` | the code does not know whether this item carries it |
+| `STAC.EO(item)` | the same as `get`, raising a [`STAC.MissingExtension`](@ref) instead of reporting `nothing` | the extension is required for what follows |
 
 An extension outside the parsed set is not lost. Its keys stay on the tail, and `get` finds
 them there:
 
 ```jldoctest extensions
 julia> narrow = STAC.read(joinpath(examples, "simple-collection", "extended-item.json");
-                          extensions = (EO,));
+                          extensions = (STAC.EO,));
 
 julia> narrow.extensions.eo.cloud_cover         # the one eager field
 1.2
 
-julia> get(narrow, View).off_nadir              # read out of `properties.other`
+julia> get(narrow, STAC.View).off_nadir         # read out of `properties.other`
 3.8
 ```
 
@@ -75,13 +75,13 @@ actually there. Producers get both wrong in both directions, so the two question
 functions.
 
 ```jldoctest extensions
-julia> STAC.declares(item, EO)                  # the schema URI is in `stac_extensions`
+julia> STAC.declares(item, STAC.EO)             # the schema URI is in `stac_extensions`
 true
 
-julia> STAC.declares(item, Sat)
+julia> STAC.declares(item, STAC.Sat)
 false
 
-julia> STAC.declares(item, STAC.schema(EO))     # the same question, asked by URI
+julia> STAC.declares(item, STAC.schema(STAC.EO))    # the same question, asked by URI
 true
 ```
 
@@ -97,17 +97,17 @@ on a different grid from the rest.
 julia> proj = STAC.read(joinpath(pkgdir(STAC), "test", "fixtures", "stac-spec",
                                  "extensions-collection", "proj-example", "proj-example.json"));
 
-julia> Projection(proj).shape                   # the item's grid
+julia> STAC.Projection(proj).shape              # the item's grid
 2-element Vector{Int64}:
  8391
  8311
 
-julia> Projection(proj.assets["B8"]).shape      # the panchromatic band's own
+julia> STAC.Projection(proj.assets["B8"]).shape         # the panchromatic band's own
 2-element Vector{Int64}:
  16781
  16621
 
-julia> get(proj.assets["B1"], Projection) === nothing    # this one states none
+julia> get(proj.assets["B1"], STAC.Projection) === nothing    # this one states none
 true
 ```
 
@@ -152,7 +152,7 @@ Naming it in `extensions =` makes it an eager field, on equal footing with the s
 
 ```jldoctest extensions
 julia> typed = STAC.read(joinpath(examples, "simple-collection", "extended-item.json");
-                         extensions = (EO, Projection, RemoteData));
+                         extensions = (STAC.EO, STAC.Projection, RemoteData));
 
 julia> typed.extensions.rd.sat_id, typed.extensions.rd.anomalous_pixels
 ("cool_sat2", 0.14)
@@ -186,7 +186,7 @@ Any
 julia> length(collect(keys(raw.properties.other)))
 15
 
-julia> get(raw, EO).cloud_cover
+julia> get(raw, STAC.EO).cloud_cover
 1.2
 ```
 

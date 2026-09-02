@@ -151,10 +151,12 @@ Two rules make the choice more than a lookup:
 | the media type wins over the extension | producers publish `.tif` assets that are really `application/x-netcdf` subdatasets |
 
 ```jldoctest
-julia> STAC.driver(Asset("s3://b/x.nc", "application/x-netcdf", nothing, nothing, nothing, nothing, NoMetadata()))
+julia> STAC.driver(STAC.Asset("s3://b/x.nc", "application/x-netcdf", nothing, nothing,
+                              nothing, nothing, STAC.NoMetadata()))
 STAC.GDALDriver()
 
-julia> STAC.driver(Asset("/data/x.nc", nothing, nothing, nothing, nothing, nothing, NoMetadata()))
+julia> STAC.driver(STAC.Asset("/data/x.nc", nothing, nothing, nothing, nothing, nothing,
+                              STAC.NoMetadata()))
 STAC.NetCDFDriver()
 ```
 """
@@ -348,10 +350,10 @@ The credentials come from `io`: [`STAC.authfor`](@ref) reports the auth that sta
 this href with, and that auth both signs the href and names the options.
 
 ```julia
-asset = Asset("https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/x/B04.tif",
-              "image/tiff; application=geotiff; profile=cloud-optimized",
-              nothing, nothing, ["data"], nothing, NoMetadata())
-r = STAC.route(STAC.driver(asset), asset, STAC.defaultstack(PlanetaryComputerSAS()))
+asset = STAC.Asset("https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/x/B04.tif",
+                   "image/tiff; application=geotiff; profile=cloud-optimized",
+                   nothing, nothing, ["data"], nothing, STAC.NoMetadata())
+r = STAC.route(STAC.driver(asset), asset, STAC.defaultstack(STAC.PlanetaryComputerSAS()))
 r.filename   # "/vsicurl/https://sentinel2l2a01.blob.core.windows.net/…?st=…&sig=…"
 r.source     # :gdal
 ```
@@ -402,13 +404,14 @@ DuckDB does the reading because a stac-geoparquet row is nested: `assets` is a s
 structs and `links` a list of them, which SQL reads and a flat parquet reader does not.
 
 ```julia
-using STAC, DuckDB
+import STAC
+using DuckDB
 
 its = STAC.read_geoparquet("test/fixtures/geoparquet/items.parquet")
 [i.id for i in its]
 # ["collectionless-item", "core-item", "extended-item", "simple-item"]
 its[3].extensions.eo.cloud_cover            # 1.2: the typed extension slots are filled
-idx = spatialindex(its)
+idx = STAC.spatialindex(its)
 ```
 """
 function read_geoparquet end
@@ -423,10 +426,11 @@ The file carries the two key-value metadata entries the format is read by: `geo`
 WKB geometry column, and `stac-geoparquet`, naming the specification version.
 
 ```julia
-using STAC, DuckDB
+import STAC
+using DuckDB
 
 cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
-STAC.write_geoparquet("items.parquet", collect(items(cat; recursive = true)))
+STAC.write_geoparquet("items.parquet", collect(STAC.items(cat; recursive = true)))
 ```
 """
 function write_geoparquet end

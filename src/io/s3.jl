@@ -2,7 +2,7 @@
 # names the package, so `S3IO()` in a session without it says what to load.
 
 """
-    S3IO(; config = nothing)
+    STAC.S3IO(; config = nothing)
 
 The [`AbstractIO`](@ref STAC.AbstractIO) that reads `s3://` hrefs, defined by AWSS3.jl.
 `config` is an `AWS.AWSConfig`; `nothing` uses the credentials AWS.jl discovers from the
@@ -13,11 +13,13 @@ default region, and a bucket that lives elsewhere answers a request sent there w
 `PermanentRedirect`.
 
 ```julia
-using STAC, AWSS3
+import STAC
+using AWSS3
 
-io = S3IO(; config = AWSS3.AWS.AWSConfig(; creds = nothing, region = "us-west-2"))
+io = STAC.S3IO(; config = AWSS3.AWS.AWSConfig(; creds = nothing, region = "us-west-2"))
 item = STAC.read("s3://sentinel-cogs/sentinel-s2-l2a-cogs/32/T/QL/2024/6/S2B_32TQL_20240601_0_L2A/S2B_32TQL_20240601_0_L2A.json";
-                 io = StreamRouterIO("s3" => io, "https" => HTTPIO(), "" => PathIO()))
+                 io = STAC.StreamRouterIO("s3" => io, "https" => STAC.HTTPIO(),
+                                          "" => STAC.PathIO()))
 item.id                     # "S2B_32TQL_20240601_0_L2A"
 length(item.assets)         # 35
 ```

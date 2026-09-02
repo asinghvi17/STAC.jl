@@ -2,7 +2,7 @@
 # query that runs the tree first and an exact predicate second.
 
 """
-    SpatialIndex(tree, items, manifold)
+    STAC.SpatialIndex(tree, items, manifold)
 
 An R-tree over a vector of [`Item`](@ref)s together with the items themselves, so a query
 can run its exact pass and report positions in the original vector. Build one with
@@ -18,8 +18,8 @@ struct SpatialIndex{Tr,V<:AbstractVector,Mf<:GO.Manifold}
 end
 
 """
-    spatialindex(manifold, items) -> SpatialIndex
-    spatialindex(items; manifold = Spherical()) -> SpatialIndex
+    STAC.spatialindex(manifold, items) -> SpatialIndex
+    STAC.spatialindex(items; manifold = GeometryOps.Spherical()) -> SpatialIndex
 
 An index over `items` for spatial queries.
 
@@ -35,7 +35,7 @@ never appear among the hits.
 using Extents
 
 cat = STAC.read("test/fixtures/hand/antimeridian-catalog/catalog.json")
-idx = spatialindex(collect(items(cat; recursive = true)))
+idx = STAC.spatialindex(collect(STAC.items(cat; recursive = true)))
 length(idx)                                             # 7, every item indexed or not
 
 hits = STAC.query(idx, Extent(X = (-123, -122), Y = (37, 38)))
@@ -76,7 +76,7 @@ exact second pass over the survivors, evaluated by GeometryOps on the same manif
 using DE9IM, Extents
 
 cat = STAC.read("test/fixtures/hand/antimeridian-catalog/catalog.json")
-idx = spatialindex(collect(items(cat; recursive = true)))
+idx = STAC.spatialindex(collect(STAC.items(cat; recursive = true)))
 
 # A box across the antimeridian is one box on the sphere.
 [idx.items[i].id for i in STAC.query(idx, Extent(X = (170, -170), Y = (60, 70)))]  # ["straddle"]

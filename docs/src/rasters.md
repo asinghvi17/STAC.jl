@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -12,12 +12,13 @@ the three things Rasters cannot know: which file an asset means once its href is
 which backend reads that file, and which GDAL options the fetch needs.
 
 ```julia
-using STAC, Rasters, ArchGDAL
+import STAC
+using Dates, Extents, Rasters, ArchGDAL
 
-client = Client("https://earth-search.aws.element84.com/v1")
-item = first(search(client; collections = ["sentinel-2-l2a"],
-                            intersects = Extent(X = (-123.0, -122.0), Y = (37.0, 38.0)),
-                            datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 30))))
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
+item = first(STAC.search(client; collections = ["sentinel-2-l2a"],
+                         intersects = Extent(X = (-123.0, -122.0), Y = (37.0, 38.0)),
+                         datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 30))))
 
 red = Raster(client, STAC.asset(item, "red"); lazy = true)
 size(red)                       # (10980, 10980)
@@ -41,13 +42,16 @@ Three constructors, one asset each, one item, and one time series:
 | `RasterStack(item, keys; io)` | one layer per asset key of one item |
 | `RasterSeries(items, key; io)` | one asset of every item, stacked along `Ti` |
 
+These four are methods on Rasters.jl's own constructors, so they take no `STAC.` prefix —
+unlike everything this package names of its own, which every example here qualifies.
+
 ```julia
 st = RasterStack(item, ["red", "green", "blue"]; io = client.io, lazy = true)
 keys(st)        # (:red, :green, :blue)
 size(st)        # (10980, 10980)
 
-found = collect(Iterators.take(search(client; collections = ["sentinel-2-l2a"],
-                                              datetime = Date(2024, 6, 27)), 4))
+found = collect(Iterators.take(STAC.search(client; collections = ["sentinel-2-l2a"],
+                                           datetime = Date(2024, 6, 27)), 4))
 series = RasterSeries(found, "red"; io = client.io, lazy = true)
 dims(series, Ti)    # the four items' datetimes
 ```
@@ -65,7 +69,8 @@ second; [`STAC.route`](@ref) then turns the pair into the `(; filename, source, 
 opener takes.
 
 ```jldoctest rasters
-julia> asset(href, type) = Asset(href, type, nothing, nothing, ["data"], nothing, NoMetadata());
+julia> asset(href, type) = STAC.Asset(href, type, nothing, nothing, ["data"], nothing,
+                                      STAC.NoMetadata());
 
 julia> STAC.route(asset("https://example.com/B04.tif", "image/tiff; application=geotiff"),
                   STAC.defaultstack())
@@ -123,9 +128,9 @@ container, or host prefix of the file — never against the process, so a token 
 Planetary Computer container stays out of every request to every other host.
 
 ```julia
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1";
-                auth = PlanetaryComputerSAS())
-item = first(search(client; collections = ["sentinel-2-l2a"], limit = 1))
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1";
+                     auth = STAC.PlanetaryComputerSAS())
+item = first(STAC.search(client; collections = ["sentinel-2-l2a"], limit = 1))
 
 Raster(client, STAC.asset(item, "B04"); lazy = true)
 # the href is signed with a SAS token, minted per storage container and cached until it expires

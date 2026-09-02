@@ -12,7 +12,8 @@ const USER_AGENT = Ref(let v = pkgversion(@__MODULE__)
 end)
 
 """
-    HTTPIO(auth = NoAuth(); client = nothing, retries = 3, connect_timeout = 30, request_timeout = 300)
+    STAC.HTTPIO(auth = STAC.NoAuth(); client = nothing, retries = 3, connect_timeout = 30,
+                request_timeout = 300)
 
 The HTTP [`AbstractIO`](@ref STAC.AbstractIO), over HTTP.jl. `auth` supplies per-href headers
 and href rewriting; every request carries a `STAC.jl/<version>` `User-Agent`.
@@ -29,10 +30,10 @@ loads: a live connection pool cannot go into a precompile cache, and HTTP.jl's i
 client already pools.
 
 ```julia
-STAC.read("https://stac.itslive.cloud/"; io = HTTPIO()).id      # "stac-fastapi"
+STAC.read("https://stac.itslive.cloud/"; io = STAC.HTTPIO()).id      # "stac-fastapi"
 
 # A slow endpoint behind a token, given more attempts and a longer ceiling.
-HTTPIO(BearerToken("s3cret"); retries = 5, request_timeout = 600)
+STAC.HTTPIO(STAC.BearerToken("s3cret"); retries = 5, request_timeout = 600)
 ```
 """
 struct HTTPIO{A<:AbstractAuth} <: AbstractIO

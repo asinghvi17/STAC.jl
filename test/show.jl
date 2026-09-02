@@ -92,6 +92,44 @@ end
     @test occursin("none of them located", repr(spatialindex(unlocated)))
 end
 
+@testset "an IO stack prints as the tree it is" begin
+    stack = STAC.defaultstack(BearerToken("s3cret"))
+
+    # One line names the wrappers in order and the schemes the router answers.
+    @test repr(stack) ==
+          "CachingIO(0/128 cached) → StreamRouterIO(\"https\", \"http\", \"\", \"file\")"
+    @test !occursin('\n', repr(stack))
+    @test repr(PathIO()) == "PathIO()"
+    @test repr(HTTPIO(BearerToken("s3cret"))) == "HTTPIO(BearerToken)"
+
+    # The block form is the nesting, with each route beside the transport that answers it.
+    @test plain(stack) == """
+        CachingIO(0/128 cached)
+        └─ StreamRouterIO(4 routes)
+           ├─ "https" → HTTPIO(BearerToken)
+           ├─ "http"  → HTTPIO(BearerToken)
+           ├─ ""      → PathIO()
+           └─ "file"  → PathIO()"""
+
+    # An auth appears by type, so a stack can go into a bug report as it stands.
+    @test !occursin("s3cret", plain(stack))
+    @test !occursin("s3cret", repr(stack))
+
+    # A wrapper below a router is drawn under it, and a transport this package does not
+    # know prints as its own name.
+    nested = plain(StreamRouterIO("s3" => CachingIO(FixtureIO()), "" => PathIO()))
+    @test nested == """
+        StreamRouterIO(2 routes)
+        ├─ "s3" → CachingIO(0/128 cached)
+        │  └─ FixtureIO
+        └─ ""   → PathIO()"""
+
+    # The count is live: a read fills the cache the header reports.
+    io = CachingIO(PathIO(); maxsize = 32)
+    STAC.read(joinpath(SPEC_DIR, "catalog.json"); io)
+    @test occursin("CachingIO(1/32 cached)", repr(io))
+end
+
 @testset "a client and a search print without fetching anything" begin
     dir = endpointdir("planetary-computer")
     io = recordedio(dir)
@@ -109,8 +147,23 @@ end
     @test occursin("\"collections\":[\"sentinel-2-l2a\"]", searchblock)
     @test occursin("items       Item{eo, proj, raster, sat, view, sci}", searchblock)
 
+    # Planetary Computer publishes no total, and the search says so from the host table
+    # rather than by asking.
+    @test occursin("matched     not reported by this endpoint", searchblock)
+    @test STAC.reportsmatched(s) === false
+    @test matched(s) === nothing
+
     # Neither `show` made a request: the client's landing page was the last one.
     @test reads!(io) == 0
+end
+
+@testset "a search on a counting endpoint says the total is one request away" begin
+    dir = endpointdir("earth-search")
+    io = recordedio(dir)
+    client = Client(endpointurl(dir); io)
+    s = search(client; collections = ["sentinel-2-l2a"], limit = 2)
+    @test STAC.reportsmatched(s)
+    @test occursin("matched     one request away", plain(s))
 end
 
 @testset "a static search prints its filters, not its results" begin

@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -51,11 +51,13 @@ the walk visits, and each document is fetched once however often it is linked.
 ```jldoctest io
 julia> examples = joinpath(pkgdir(STAC), "test", "fixtures", "static", "self-contained");
 
-julia> io = CachingIO(PathIO(); maxsize = 32);
+julia> io = STAC.CachingIO(STAC.PathIO(); maxsize = 32)
+CachingIO(0/32 cached)
+└─ PathIO()
 
 julia> cat = STAC.read(joinpath(examples, "catalog.json"); io);
 
-julia> collect(items(cat; recursive = true, io));
+julia> collect(STAC.items(cat; recursive = true, io));
 
 julia> length(io.cache)     # the catalog, two collections, four items
 7
@@ -64,11 +66,27 @@ julia> empty!(io); length(io.cache)
 0
 ```
 
+A stack prints as the tree it is, so the transport that will answer a given scheme, and the
+credentials sitting on it, are one line each:
+
+```jldoctest io
+julia> STAC.defaultstack(STAC.BearerToken("s3cret"))
+CachingIO(0/128 cached)
+└─ StreamRouterIO(4 routes)
+   ├─ "https" → HTTPIO(BearerToken)
+   ├─ "http"  → HTTPIO(BearerToken)
+   ├─ ""      → PathIO()
+   └─ "file"  → PathIO()
+```
+
+An auth appears by type. The token itself is never printed, so a stack can go into a bug
+report as it stands.
+
 Swap the stack for a block with [`STAC.with`](@ref), which rebinds
 [`STAC.DEFAULT_IO`](@ref) for the dynamic extent of the call:
 
 ```julia
-STAC.with(STAC.defaultstack(BearerToken(ENV["TOKEN"]))) do
+STAC.with(STAC.defaultstack(STAC.BearerToken(ENV["TOKEN"]))) do
     STAC.read("https://example.com/catalog.json")
 end
 ```
@@ -95,17 +113,17 @@ What ships:
 | [`PlanetaryComputerSAS`](@ref) | none | a SAS token appended per storage container, cached until it expires |
 
 ```jldoctest io
-julia> STAC.headers(BearerToken("s3cret"), "https://example.com")
+julia> STAC.headers(STAC.BearerToken("s3cret"), "https://example.com")
 1-element Vector{Pair{String, String}}:
  "Authorization" => "Bearer s3cret"
 
-julia> STAC.headers(NoAuth(), "https://example.com")
+julia> STAC.headers(STAC.NoAuth(), "https://example.com")
 Pair{String, String}[]
 
-julia> STAC.headers(EarthdataLogin("tok"), "https://example.com/b.tif")   # not a NASA host
+julia> STAC.headers(STAC.EarthdataLogin("tok"), "https://example.com/b.tif")   # not a NASA host
 Pair{String, String}[]
 
-julia> STAC.headers(EarthdataLogin("tok"), "https://data.lpdaac.earthdatacloud.nasa.gov/x/B04.tif")
+julia> STAC.headers(STAC.EarthdataLogin("tok"), "https://data.lpdaac.earthdatacloud.nasa.gov/x/B04.tif")
 1-element Vector{Pair{String, String}}:
  "Authorization" => "Bearer tok"
 ```
@@ -113,10 +131,10 @@ julia> STAC.headers(EarthdataLogin("tok"), "https://data.lpdaac.earthdatacloud.n
 A [`Client`](@ref) takes one through `auth =` and every later call carries it:
 
 ```julia
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1";
-                auth = PlanetaryComputerSAS())
-client = Client("https://cmr.earthdata.nasa.gov/stac/LPCLOUD";
-                auth = EarthdataLogin(ENV["EARTHDATA_TOKEN"]))
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1";
+                     auth = STAC.PlanetaryComputerSAS())
+client = STAC.Client("https://cmr.earthdata.nasa.gov/stac/LPCLOUD";
+                     auth = STAC.EarthdataLogin(ENV["EARTHDATA_TOKEN"]))
 ```
 
 ### Writing your own
@@ -145,13 +163,13 @@ asks its inner IO and a router asks the child its scheme picks, so the answer is
 actually applies to the href at hand:
 
 ```jldoctest io
-julia> stack = STAC.defaultstack(BearerToken("s3cret"));
+julia> stack = STAC.defaultstack(STAC.BearerToken("s3cret"));
 
 julia> STAC.authfor(stack, "https://example.com/b.tif")
-BearerToken("s3cret")
+STAC.BearerToken("s3cret")
 
 julia> STAC.authfor(stack, "/data/b.tif")
-NoAuth()
+STAC.NoAuth()
 ```
 
 That is the whole mechanism behind `Raster(client, asset)`:
@@ -160,11 +178,11 @@ options, and the [Rasters bridge](rasters.md) sets those options against the buc
 prefix rather than against the process.
 
 ```jldoctest io
-julia> STAC.gdal_config(BearerToken("s3cret"), "https://example.com/b.tif")
+julia> STAC.gdal_config(STAC.BearerToken("s3cret"), "https://example.com/b.tif")
 1-element Vector{Pair{String, String}}:
  "GDAL_HTTP_HEADERS" => "Authorization: Bearer s3cret"
 
-julia> STAC.gdal_config(NoAuth(), "https://example.com/b.tif")
+julia> STAC.gdal_config(STAC.NoAuth(), "https://example.com/b.tif")
 Pair{String, String}[]
 ```
 
@@ -199,11 +217,16 @@ is a name this package owns and that package implements, so calling it before lo
 raises a `MethodError` that says which package to load.
 
 ```julia
-using STAC, AWSS3
+import STAC
+using AWSS3
 
-io = StreamRouterIO("s3" => S3IO(), "https" => HTTPIO(), "" => PathIO())
+s3 = STAC.S3IO(; config = AWSS3.AWS.AWSConfig(; creds = nothing, region = "us-west-2"))
+io = STAC.StreamRouterIO("s3" => s3, "https" => STAC.HTTPIO(), "" => STAC.PathIO())
 STAC.read("s3://sentinel-cogs/.../S2B_32TQL_20240601_0_L2A.json"; io)
 ```
+
+Name the region a public bucket lives in: AWS.jl resolves `nothing` to the default one, and a
+bucket somewhere else answers a request sent there with a `PermanentRedirect`.
 
 Google Cloud Storage and Azure have no `AbstractPath` type in the Julia ecosystem, so catalog
 JSON on those stores is read over `https://` and their assets go through GDAL's `/vsigs/` and

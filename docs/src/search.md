@@ -1,7 +1,8 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC, Dates, Extents
+    import STAC
+    using Dates, Extents
 end
 ```
 
@@ -14,8 +15,8 @@ filters in memory. Both return something that answers the same three calls:
 | Call | Gives |
 |---|---|
 | iterating the search | one [`Item`](@ref) at a time, fetching pages as it reaches them |
-| [`pages(s)`](@ref pages) | one [`ItemCollection`](@ref) per request |
-| [`matched(s)`](@ref matched) | the total, or `nothing` where the endpoint declines to count |
+| [`STAC.pages(s)`](@ref pages) | one [`ItemCollection`](@ref) per request |
+| [`STAC.matched(s)`](@ref matched) | the total, or `nothing` where the endpoint publishes none |
 
 Nothing is fetched until the result is iterated, so building a search costs no request.
 
@@ -25,9 +26,10 @@ A [`Client`](@ref) reads the landing page once and keeps three things from it: t
 catalog, the `conformsTo` list, and the [`STAC.HostDefaults`](@ref) recorded for that host.
 
 ```julia
-using STAC, Dates, Extents
+import STAC
+using Dates, Extents
 
-client = Client("https://earth-search.aws.element84.com/v1")
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
 # Client "https://earth-search.aws.element84.com/v1"
 #   root        "earth-search-aws" — Earth Search by Element 84
 #   conforms    14 classes
@@ -36,9 +38,12 @@ client = Client("https://earth-search.aws.element84.com/v1")
 STAC.conforms(client, "item-search")            # true
 STAC.conforms(client, "item-search#filter")     # false: this endpoint has no CQL2
 
-collections(client)     # every collection the `data` link lists, each with its own href
-# 9-element Vector{Collection{Metadata}}: sentinel-2-l2a, landsat-c2-l2, naip, …
+STAC.collections(client)   # every collection the `data` link lists, each with its own href
+# 9-element Vector{STAC.Collection{STAC.Metadata}}: sentinel-2-l2a, landsat-c2-l2, naip, …
 ```
+
+`import STAC` and `STAC.<name>` is how every example here is written: one spelling for
+everything the package owns, exported or not.
 
 `conforms` matches a short name against any version, since endpoints publish the same class
 under `v1.0.0`, `v1.0.0-rc.2`, and the OGC URIs side by side. A full URI must match exactly.
@@ -46,23 +51,24 @@ under `v1.0.0`, `v1.0.0-rc.2`, and the OGC URIs side by side. A full URI must ma
 A credentialed endpoint takes one keyword — see [Fetching and credentials](io.md):
 
 ```julia
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1";
-                auth = PlanetaryComputerSAS())
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1";
+                     auth = STAC.PlanetaryComputerSAS())
 ```
 
 ## One search
 
 ```julia
-s = search(client;
-           collections = ["sentinel-2-l2a"],
-           intersects  = Extent(X = (-123.0, -122.0), Y = (37.0, 38.0)),
-           datetime    = (DateTime(2024, 6, 1), DateTime(2024, 6, 30)),
-           limit       = 5)
+s = STAC.search(client;
+                collections = ["sentinel-2-l2a"],
+                intersects  = Extent(X = (-123.0, -122.0), Y = (37.0, 38.0)),
+                datetime    = (DateTime(2024, 6, 1), DateTime(2024, 6, 30)),
+                limit       = 5)
 # APIItemSearch POST https://earth-search.aws.element84.com/v1/search
 #   body        {"collections":["sentinel-2-l2a"],"bbox":[-123.0,37.0,-122.0,38.0],"datetime":"2024-06-01T00:00:00Z/2024-06-30T00:00:00Z","limit":5}
 #   items       Item{eo, proj, raster, sat, view, sci}
+#   matched     one request away
 
-matched(s)                          # 66, one request
+STAC.matched(s)                     # 66, one request
 first(s).id                         # "S2B_10SDF_20240627_0_L2A"
 length(collect(Iterators.take(s, 7)))   # 7 items, which is two pages of 5
 ```
@@ -141,7 +147,7 @@ Pass your own with `host =` to teach one call about an endpoint the table does n
 `collect` all derive from it. One element is one request.
 
 ```julia
-page = first(pages(s))
+page = first(STAC.pages(s))
 # ItemCollection{eo, proj, raster, sat, view, sci} with 5 items of 66 matched
 #   items       S2B_10SDF_20240627_0_L2A, S2B_10SEF_20240627_0_L2A, …
 #   links       next, root
@@ -163,9 +169,19 @@ ways:
 | stac-server | Earth Search, LandsatLook | a `POST` with `merge: false` and a body of its own |
 | CMR | LPCLOUD | a `GET` carrying `cursor=` |
 
-[`matched`](@ref) costs one request and returns `nothing` on Planetary Computer and CDSE,
-which report `numberReturned` alone. [`STAC.numbermatched`](@ref) also reads the deprecated
-`context.matched` the CMR endpoints still send.
+[`matched`](@ref) costs one request and answers `nothing` on Planetary Computer and CDSE,
+which publish `numberReturned` alone. Branch on `n === nothing` rather than comparing the
+result — `STAC.matched(s) > 100` on those two endpoints is a `MethodError` a long way from
+its cause. [`STAC.reportsmatched`](@ref) answers the same question before the request, and
+printing a search says so on its `matched` line:
+
+```julia
+n = STAC.matched(s)
+n === nothing ? "an unknown number of items" : string(n, " items")
+```
+
+[`STAC.numbermatched`](@ref) also reads the deprecated `context.matched` the CMR endpoints
+still send.
 
 ## Failing at the call site
 
@@ -173,7 +189,7 @@ which report `numberReturned` alone. [`STAC.numbermatched`](@ref) also reads the
 request an endpoint cannot answer raises where it was written rather than 400ing pages later.
 
 ```julia
-search(client; collections = ["sentinel-2-l2a"], filter = Dict("op" => "=", "args" => []))
+STAC.search(client; collections = ["sentinel-2-l2a"], filter = Dict("op" => "=", "args" => []))
 # ERROR: https://earth-search.aws.element84.com/v1 does not advertise the conformance class
 # `item-search#filter`, which `filter =` needs. Its landing page lists 14 classes.
 ```
@@ -188,15 +204,15 @@ search(client; collections = ["sentinel-2-l2a"], filter = Dict("op" => "=", "arg
 
 ## One collection at a time
 
-[`collection`](@ref STAC.collection) reads one collection by id, and
-[`items(client, collection)`](@ref items) is the `GET` twin of `search` against the OGC API -
-Features endpoint the collection publishes. It takes the same spatial and temporal keywords,
-minus the ones the path already fixes.
+[`STAC.collection`](@ref) reads one collection by id, and
+[`STAC.items(client, collection)`](@ref items) is the `GET` twin of `STAC.search` against the
+OGC API - Features endpoint the collection publishes. It takes the same spatial and temporal
+keywords, minus the ones the path already fixes.
 
 ```julia
 col = STAC.collection(client, "sentinel-2-l2a")
 col.extent.spatial.bbox[1]                  # the collection's footprint
-first(items(client, col)).id                # through /collections/sentinel-2-l2a/items
+first(STAC.items(client, col)).id           # through /collections/sentinel-2-l2a/items
 ```
 
 ## Searching a catalog that is not an API
@@ -209,15 +225,15 @@ julia> edges = joinpath(pkgdir(STAC), "test", "fixtures", "hand", "antimeridian-
 
 julia> cat = STAC.read(joinpath(edges, "catalog.json"));
 
-julia> s = search(cat; collections = "edges",
-                       intersects = Extent(X = (170, -170), Y = (60, 70)))
+julia> s = STAC.search(cat; collections = "edges",
+                            intersects = Extent(X = (170, -170), Y = (60, 70)))
 StaticItemSearch over Catalog "antimeridian"
   collections edges
   intersects  Extent(X = (170, -170), Y = (60, 70))
   limit       100
   matched     not run yet
 
-julia> matched(s)       # exact here: the filtered set is in memory
+julia> STAC.matched(s)  # exact here: the filtered set is in memory
 1
 
 julia> first(s).id
@@ -226,8 +242,8 @@ julia> first(s).id
 
 Two things differ from the API backend, and both follow from the filtering being local:
 
-- `matched` is exact, and after a `collect` it costs nothing.
+- `STAC.matched` is exact, and after a `collect` it costs nothing.
 - `intersects` also accepts a `SphericalCap`, which no endpoint takes as a request parameter.
 
-`limit` still pages, with the spec's default of 100, so `pages`, `Iterators.take`, and
+`limit` still pages, with the spec's default of 100, so `STAC.pages`, `Iterators.take`, and
 `collect` behave the same on both backends.

@@ -501,7 +501,7 @@ end
 
 """
     ItemCollection{E,G,M}
-    ItemCollection(features; links, numberMatched, numberReturned, metadata, href)
+    STAC.ItemCollection(features; links, numberMatched, numberReturned, metadata, href)
 
 One page of a search, or any GeoJSON FeatureCollection of STAC items.
 

@@ -16,8 +16,8 @@ passes to anything that takes a dictionary.
 abstract type AnyMetadata <: AbstractDict{String,Any} end
 
 """
-    Metadata(data::JSON.Object{String,Any})
-    Metadata()
+    STAC.Metadata(data::JSON.Object{String,Any})
+    STAC.Metadata()
 
 The keys of a STAC object that no struct field names, kept in document order so that
 [`STAC.json`](@ref) writes them back where the producer put them. Extension keys with no
@@ -40,7 +40,7 @@ end
 Metadata() = Metadata(JSON.Object{String,Any}())
 
 """
-    NoMetadata()
+    STAC.NoMetadata()
 
 The tail of an object parsed with `metadata = false`: unnamed keys were skipped during the
 parse, so the type itself proves that nothing unknown was kept. It is an empty

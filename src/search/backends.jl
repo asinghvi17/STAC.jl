@@ -148,6 +148,8 @@ function Base.iterate(p::PageIterator, state::PageState = PageState(p.search))
     return page, state
 end
 
+reportsmatched(s::APIItemSearch) = s.host.reports_matched
+
 function matched(s::APIItemSearch)
     s.host.reports_matched || return nothing
     return numbermatched(fetchpage(s, PageState(s)))
@@ -192,9 +194,9 @@ searchlimit(host::HostDefaults, ::Nothing) = host.default_limit
 searchlimit(host::HostDefaults, limit::Integer) = clamp(Int(limit), 1, host.max_limit)
 
 """
-    search(client; collections, ids, intersects, datetime, query, filter, filter_lang,
-           sortby, fields, limit, method, extensions, geometry, metadata) -> APIItemSearch
-    search(client, opts::ParseOptions; …)
+    STAC.search(client; collections, ids, intersects, datetime, query, filter, filter_lang,
+                sortby, fields, limit, method, extensions, geometry, metadata) -> APIItemSearch
+    STAC.search(client, opts::ParseOptions; …)
 
 A prepared item search. Nothing is fetched until the result is iterated, so building a search
 costs no request.
@@ -214,24 +216,24 @@ The request is checked against the endpoint's `conformsTo` before it is built, s
 an endpoint cannot answer raises here rather than 400ing later.
 
 ```julia
-client = Client("https://earth-search.aws.element84.com/v1")
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
 
 # a collection, an area, and a window
-s = search(client; collections = ["sentinel-2-l2a"],
-           intersects = Extent(X = (-123, -122), Y = (37, 38)),
-           datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 5)), limit = 100)
-matched(s)                        # the total, on an endpoint that reports one
+s = STAC.search(client; collections = ["sentinel-2-l2a"],
+                intersects = Extent(X = (-123, -122), Y = (37, 38)),
+                datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 5)), limit = 100)
+STAC.matched(s)                   # the total, on an endpoint that reports one
 
 # a geometry goes as `intersects`, in Float64 whatever precision it arrived in
 aoi = GeoJSON.read(read("aoi.geojson", String))
-search(client; intersects = aoi, datetime = Date(2024, 6, 1))
+STAC.search(client; intersects = aoi, datetime = Date(2024, 6, 1))
 
 # pages arrive as they are reached
 collect(Iterators.take(s, 5))     # five items, from one request of 100
 ```
 
-`search(client, opts::ParseOptions; …)` is the explicit form, matching
-[`children(obj, opts; io)`](@ref children). It is what a `--trim=safe` program calls: the
+`STAC.search(client, opts::ParseOptions; …)` is the explicit form, matching
+[`STAC.children(obj, opts; io)`](@ref children). It is what a `--trim=safe` program calls: the
 options are a type there, and building one from three keywords inside the call leaves the
 item type to a runtime computation over `DataType` values.
 """
@@ -259,8 +261,8 @@ search(client::Client; extensions = DEFAULT_EXTENSIONS, geometry = DEFAULT_GEOME
     STAC.featuresearch(client, href, opts::ParseOptions; …)
 
 A `GET` search against an OGC API - Features items endpoint, which is what
-[`items(client, collection)`](@ref) returns. The keywords are [`search`](@ref)'s, minus the
-ones the path already fixes.
+[`STAC.items(client, collection)`](@ref items) returns. The keywords are [`search`](@ref)'s,
+minus the ones the path already fixes.
 """
 function featuresearch(client::Client, href::AbstractString, opts::ParseOptions;
                        ids = nothing, intersects = nothing, datetime = nothing,
@@ -288,7 +290,7 @@ filters it will apply. It answers the same [`pages`](@ref) protocol as
 the same on both. Build one with [`search`](@ref).
 
 The walk, the filters, and the index run once, on the first page asked for, and the result
-is kept: `matched(s)` after `collect(s)` costs nothing.
+is kept: `STAC.matched(s)` after `collect(s)` costs nothing.
 """
 mutable struct StaticItemSearch{E,G,M,C,I<:AbstractIO,S,Mf<:GO.Manifold} <: AbstractItemSearch
     root::C
@@ -333,6 +335,8 @@ end
 
 matched(s::StaticItemSearch) = length(staticitems(s))
 
+reportsmatched(::StaticItemSearch) = true
+
 """
     STAC.StaticPages
 
@@ -363,10 +367,10 @@ end
 """
     search(catalog; collections, ids, intersects, datetime, limit, manifold, io,
            extensions, geometry, metadata) -> STAC.StaticItemSearch
-    search(catalog, opts::ParseOptions; …)
+    STAC.search(catalog, opts::ParseOptions; …)
 
 A search over a static [`Catalog`](@ref) or [`Collection`](@ref), with the spatial and
-temporal keywords [`search(client; …)`](@ref search) takes. Nothing is fetched until the
+temporal keywords [`STAC.search(client; …)`](@ref search) takes. Nothing is fetched until the
 result is iterated.
 
 | Keyword | Takes |
@@ -383,13 +387,13 @@ result is iterated.
 cat = STAC.read("catalog.json")
 
 # the walk runs on the first item asked for, and a box across the antimeridian is one box
-s = search(cat; collections = "edges", intersects = Extent(X = (170, -170), Y = (60, 70)))
-matched(s)                        # exact: the filtered set is in memory
+s = STAC.search(cat; collections = "edges", intersects = Extent(X = (170, -170), Y = (60, 70)))
+STAC.matched(s)                   # exact: the filtered set is in memory
 first(s).id
 
 # a DE-9IM predicate keeps only the items it holds for, evaluated on the sphere
 aoi = GeoJSON.read(read("aoi.geojson", String); numbertype = Float64)
-collect(search(cat; intersects = Within(aoi), datetime = Date(2024, 6, 4)))
+collect(STAC.search(cat; intersects = Within(aoi), datetime = Date(2024, 6, 4)))
 ```
 """
 function search(obj::Union{Catalog,Collection}, opts::ParseOptions; collections = nothing,

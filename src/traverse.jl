@@ -73,8 +73,8 @@ Base.iterate(it::LinkIterator{T}, i::Int = 1) where {T} =
     (read(T, resolve(@inbounds(it.links[i]), it.base), it.io, it.opts), i + 1)
 
 """
-    children(obj; io = STAC.default_io(), extensions, geometry, metadata) -> LinkIterator
-    children(obj, opts::ParseOptions; io = STAC.default_io())
+    STAC.children(obj; io = STAC.default_io(), extensions, geometry, metadata) -> LinkIterator
+    STAC.children(obj, opts::ParseOptions; io = STAC.default_io())
 
 The `child` links of a [`Catalog`](@ref) or [`Collection`](@ref), as a lazy iterator of the
 catalogs and collections they point at. Each element's struct is chosen by that document's
@@ -85,8 +85,8 @@ that fetches.
 
 ```julia
 cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
-length(children(cat))               # 2, from the link count, before any request
-[c.id for c in children(cat)]       # ["simple-collection", "empty-collection"]
+length(STAC.children(cat))              # 2, from the link count, before any request
+[c.id for c in STAC.children(cat)]      # ["simple-collection", "empty-collection"]
 ```
 """
 children(obj::STACObject, opts::ParseOptions; io::AbstractIO = default_io()) =
@@ -96,8 +96,8 @@ children(obj::STACObject; io::AbstractIO = default_io(), kw...) =
     children(obj, ParseOptions(; kw...); io)
 
 """
-    items(obj; recursive = false, io = STAC.default_io(), extensions, geometry, metadata)
-    items(obj, opts::ParseOptions; recursive = false, io = STAC.default_io())
+    STAC.items(obj; recursive = false, io = STAC.default_io(), extensions, geometry, metadata)
+    STAC.items(obj, opts::ParseOptions; recursive = false, io = STAC.default_io())
 
 The [`Item`](@ref)s of a catalog or collection, as a lazy iterator.
 
@@ -111,9 +111,9 @@ rate-limited catalog costs exactly as many requests as it visits documents.
 
 ```julia
 cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
-[i.id for i in items(cat)]                          # ["collectionless-item"]
-length(collect(items(cat; recursive = true)))       # 4, the descendants' as well
-first(items(cat; recursive = true)).properties.datetime
+[i.id for i in STAC.items(cat)]                         # ["collectionless-item"]
+length(collect(STAC.items(cat; recursive = true)))      # 4, the descendants' as well
+first(STAC.items(cat; recursive = true)).properties.datetime
 ```
 """
 function items(obj::STACObject, opts::ParseOptions; io::AbstractIO = default_io(),

@@ -234,6 +234,28 @@ Prose and comments follow `~/.claude/skills/writing/SKILL.md`: a comment carries
 the code cannot show, a docstring leads with what the thing is, and cases and outcomes are
 tables rather than run-on sentences.
 
+### Examples
+
+**Every example is written for `import STAC`, and spells this package's names `STAC.foo`.**
+The export list is uneven — `collections` is exported and `collection` is not — so one
+qualified spelling is what makes an example run whichever name it reaches for. It applies to
+runnable code: a fenced block, a docstring's signature line, and inline code that is a call.
+A bare name in prose or in `@ref` link text is the thing's name and stays as it is.
+
+Two things stay unqualified, both because the name belongs to another package:
+
+| Unqualified | Because |
+|---|---|
+| `Raster`, `RasterStack`, `RasterSeries`, `GeoInterface.geometry`, `Extents.extent`, `DataFrame`, `parent`, `get` | methods this package adds to another package's (or Base's) function |
+| `using Rasters, ArchGDAL`, `using DuckDB`, `using GeoParquet`, `using AWSS3`, `using Makie` | a trigger package loaded for its own sake; `import STAC` goes on the line above |
+
+`docs/make.jl` sets the doctest environment to `import STAC` alone, so a doctest's output
+prints types the way a reader's session does — `STAC.Asset`, not `Asset`.
+
+Run every example before committing it. Phase 8 found nine wrong docstrings that way, and the
+qualification pass found six more sites: five doctest outputs that only matched because the
+build had `using STAC` in `Main`, and one `s3://` block that raised.
+
 ## Commits
 
 Imperative, capitalized, no prefix: `Add the spherical index`, not `feat: added index`.

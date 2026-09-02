@@ -10,28 +10,28 @@ iterating items, `Iterators.take`, `collect` — derives from it.
 
 | Method | Contract |
 |---|---|
-| `pages(s)` | an iterator of `ItemCollection`, one per request; required |
-| `matched(s)` | the total the endpoint reports, or `nothing`; optional |
+| `STAC.pages(s)` | an iterator of `ItemCollection`, one per request; required |
+| `STAC.matched(s)` | the total the endpoint reports, or `nothing`; optional |
 
 `IteratorSize` is `SizeUnknown()`, so `first` and `take` fetch only the pages they reach.
 
 ```julia
 first(s)                          # one item, one request
 collect(Iterators.take(s, 5))     # five items, however many pages that takes
-collect(pages(s))                 # every page, to the end of the result set
+collect(STAC.pages(s))            # every page, to the end of the result set
 ```
 """
 abstract type AbstractItemSearch end
 
 """
-    pages(s::AbstractItemSearch)
+    STAC.pages(s::AbstractItemSearch)
 
 The pages of a search, as a lazy iterator of [`ItemCollection`](@ref). One element is one
 request: the first is the search itself, each further one follows the previous page's `next`
 link.
 
 ```julia
-page = first(pages(s))            # one request
+page = first(STAC.pages(s))       # one request
 page.features                     # the items it carried
 page.numberReturned               # how many that is
 ```
@@ -39,17 +39,41 @@ page.numberReturned               # how many that is
 function pages end
 
 """
-    matched(s::AbstractItemSearch) -> Union{Int,Nothing}
+    STAC.matched(s::AbstractItemSearch) -> Union{Int,Nothing}
 
-The number of items the search matches in total, or `nothing` when the endpoint does not
-report one. Reading it costs one request, since the count lives on the first page.
+The total number of items a search matches, as the endpoint reports it in `numberMatched`.
+One request pays for it, the count living on the first page; a
+[`STAC.StaticItemSearch`](@ref) counts exactly, its filtered set being in memory.
+
+`nothing` is the answer from an endpoint that publishes no total. Planetary Computer and CDSE
+are the two probed here that page without one, and so does any endpoint whose
+[`HostDefaults`](@ref) carries `reports_matched = false`.
+
+| Want | Write |
+|---|---|
+| the count, either way | `n = STAC.matched(s)`, then branch on `n === nothing` |
+| to know before paying a request | [`STAC.reportsmatched(s)`](@ref STAC.reportsmatched) |
+| the items regardless | iterate the search; paging follows `next` links with or without a total |
 
 ```julia
-s = search(client; collections = ["sentinel-2-l2a"], datetime = Date(2024, 6, 1))
-matched(s)          # an `Int` where the endpoint counts, `nothing` where it does not
+s = STAC.search(client; collections = ["sentinel-2-l2a"], datetime = Date(2024, 6, 1))
+n = STAC.matched(s)
+# `n > 100` would be a MethodError on an endpoint that publishes no total.
+n === nothing ? "an unknown number of items" : string(n, " items")
 ```
+
+Printing `s` says which of the two answers to expect, and makes no request to find out.
 """
 matched(::AbstractItemSearch) = nothing
+
+"""
+    STAC.reportsmatched(s::AbstractItemSearch) -> Bool
+
+Whether [`matched`](@ref) answers this search with a number. A backend knows before it
+asks — an API search from its host's `reports_matched` flag, a static search from its own
+walk — so this costs no request.
+"""
+reportsmatched(::AbstractItemSearch) = false
 
 Base.IteratorSize(::Type{<:AbstractItemSearch}) = Base.SizeUnknown()
 

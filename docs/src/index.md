@@ -35,7 +35,7 @@ features:
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -71,12 +71,12 @@ Catalog "examples" — Example Catalog
   links       root, child ×2, item
   metadata    1 key: "stac_version"
 
-julia> [c.id for c in children(cat)]
+julia> [c.id for c in STAC.children(cat)]
 2-element Vector{String}:
  "simple-collection"
  "empty-collection"
 
-julia> item = last(collect(items(cat; recursive = true)))
+julia> item = last(collect(STAC.items(cat; recursive = true)))
 Item{eo, proj, raster, sat, view, sci} "extended-item" 2020-12-14
   datetime    2020-12-14T18:02:31.437Z
   collection  simple-collection

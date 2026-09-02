@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC
+    import STAC
 end
 ```
 
@@ -18,30 +18,28 @@ in CI, so a trim regression shows up as a verifier error there rather than at re
 Three things make a program trimmable, and they are all visible in this one.
 
 ```julia
-using STAC
-using STAC: Catalog, Item, Metadata, ParseOptions, PathIO, EO, Projection, extensiontype,
-            query, spatialindex
+import STAC
 using Extents, GeoJSON
 
-const E = extensiontype((EO, Projection))
+const E = STAC.extensiontype((STAC.EO, STAC.Projection))
 const G = Union{Nothing,GeoJSON.Polygon{2,Float64},GeoJSON.MultiPolygon{2,Float64}}
-const OPTS = ParseOptions{E,G,Metadata}()
+const OPTS = STAC.ParseOptions{E,G,STAC.Metadata}()
 const BOX = Extents.Extent(X = (170.0, -170.0), Y = (60.0, 70.0))
 
 function (@main)(args::Vector{String})::Cint
-    io = PathIO()
-    catalog = STAC.read(Catalog{Metadata}, args[1], io, OPTS)
+    io = STAC.PathIO()
+    catalog = STAC.read(STAC.Catalog{STAC.Metadata}, args[1], io, OPTS)
     println(Core.stdout, catalog.id)
 
-    for item in search(catalog, OPTS; io, intersects = BOX)
+    for item in STAC.search(catalog, OPTS; io, intersects = BOX)
         println(Core.stdout, item.id)
     end
 
-    walked = Item{E,G,Metadata}[]
-    for item in items(catalog, OPTS; io, recursive = true)
+    walked = STAC.Item{E,G,STAC.Metadata}[]
+    for item in STAC.items(catalog, OPTS; io, recursive = true)
         push!(walked, item)
     end
-    println(Core.stdout, length(query(spatialindex(walked), BOX)))
+    println(Core.stdout, length(STAC.query(STAC.spatialindex(walked), BOX)))
     return 0
 end
 ```
@@ -50,7 +48,7 @@ end
 |---|---|
 | the extension tuple, geometry union, and metadata type are compile-time constants | under trimming the set of parse methods must be closed; `ParseOptions{E,G,M}` is what names it |
 | `io` is passed explicitly | [`STAC.default_io`](@ref) reads a `ScopedValue`, which is one dynamic dispatch the verifier cannot follow |
-| the positional forms are used — `search(catalog, opts; …)`, `search(client, opts; …)`, `items(obj, opts; …)`, `STAC.read(T, href, io, opts)` | they take the options as a value rather than rebuilding one from keywords |
+| the positional forms are used — `STAC.search(catalog, opts; …)`, `STAC.search(client, opts; …)`, `STAC.items(obj, opts; …)`, `STAC.read(T, href, io, opts)` | they take the options as a value rather than rebuilding one from keywords |
 
 Build it with the `juliac` driver that ships with Julia:
 
@@ -117,8 +115,8 @@ runs. `test/compile/Project.toml` pins `=0.22.23`.
 
 ## Which extensions a trimmed program sees
 
-The set is closed at compile time, so `extensions = (EO, Projection)` in a trim program is
-not a default that can be widened later — it is the whole list of extension structs the
+The set is closed at compile time, so `extensions = (STAC.EO, STAC.Projection)` in a trim
+program is not a default that can be widened later — it is the whole list of extension structs the
 binary carries parse code for. Reaching for one outside it through [`get`](@ref) still works,
 [`STAC.fromtail`](@ref) being a lookup rather than a parse, but the wider the declared tuple
 the more code the binary holds.

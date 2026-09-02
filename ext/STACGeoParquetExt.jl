@@ -19,11 +19,12 @@ The table a flat GeoParquet asset holds, as GeoParquet.jl's `GeoDataFrame`: one 
 feature, with the geometry column typed and every other column as the producer wrote it.
 
 ```julia
-using STAC, GeoParquet
+import STAC
+using GeoParquet
 
-asset = Asset(abspath("test/fixtures/geoparquet/footprints.parquet"),
-              "application/vnd.apache.parquet", nothing, nothing, ["data"], nothing,
-              NoMetadata())
+asset = STAC.Asset(abspath("test/fixtures/geoparquet/footprints.parquet"),
+                   "application/vnd.apache.parquet", nothing, nothing, ["data"], nothing,
+                   STAC.NoMetadata())
 df = STAC.read(asset)
 names(df)                       # ["id", "datetime", "geometry"]
 ```

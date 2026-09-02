@@ -49,7 +49,8 @@ metadatatype(keep::Bool) = keep ? Metadata : NoMetadata
 metadatatype(::Type{M}) where {M} = M
 
 """
-    ParseOptions(; extensions = DEFAULT_EXTENSIONS, geometry = DEFAULT_GEOMETRY, metadata = true)
+    STAC.ParseOptions(; extensions = STAC.DEFAULT_EXTENSIONS,
+                      geometry = STAC.DEFAULT_GEOMETRY, metadata = true)
 
 The three choices that fix the concrete types a parse produces, carried as type parameters so
 [`STAC.itemtype`](@ref) is known at compile time.

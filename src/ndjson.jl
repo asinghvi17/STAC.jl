@@ -63,10 +63,10 @@ Nothing is read until an element is reached, so `first` costs one line and
 | an `IO` | yours: the iterator picks up where the stream stands and leaves it open |
 
 ```julia
-items = STAC.read_ndjson("corpus.ndjson")
-first(items).id                                 # one line read
-sum(1 for _ in items)                           # the whole file, one line at a time
-idx = spatialindex(collect(Iterators.take(items, 1000)))
+lines = STAC.read_ndjson("corpus.ndjson")
+first(lines).id                                 # one line read
+sum(1 for _ in lines)                           # the whole file, one line at a time
+idx = STAC.spatialindex(collect(Iterators.take(lines, 1000)))
 ```
 """
 read_ndjson(path::AbstractString; kw...) = read_ndjson(path, ParseOptions(; kw...))
@@ -88,7 +88,7 @@ file's [`STAC.read_ndjson`](@ref), which streams one item at a time.
 
 ```julia
 cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
-STAC.write_ndjson("items.ndjson", items(cat; recursive = true))    # 4
+STAC.write_ndjson("items.ndjson", STAC.items(cat; recursive = true))    # 4
 [i.id for i in STAC.read_ndjson("items.ndjson")]
 ```
 """

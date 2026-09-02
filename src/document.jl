@@ -106,7 +106,7 @@ item.extensions.eo.cloud_cover      # 1.2
 item.properties.datetime            # DateTime("2020-12-14T18:02:31.437")
 
 cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
-[c.id for c in children(cat)]       # ["simple-collection", "empty-collection"]
+[c.id for c in STAC.children(cat)]  # ["simple-collection", "empty-collection"]
 ```
 """
 function read(href::AbstractString; io::AbstractIO = default_io(), kw...)
@@ -125,8 +125,8 @@ asset on `s3://` reads through whatever route the stack has for that scheme. A r
 raises a [`STAC.NotGeoJSONAsset`](@ref) naming the driver that does open it.
 
 ```julia
-asset = Asset("/data/footprint.geojson", "application/geo+json",
-              nothing, nothing, ["metadata"], nothing, NoMetadata())
+asset = STAC.Asset("/data/footprint.geojson", "application/geo+json",
+                   nothing, nothing, ["metadata"], nothing, STAC.NoMetadata())
 fc = STAC.read(asset)               # GeoJSON.FeatureCollection
 GeoInterface.nfeature(fc)           # however many shapes the file holds
 ```

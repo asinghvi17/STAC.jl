@@ -94,8 +94,8 @@ end
 # One asset
 
 """
-    Raster(asset::Asset; io = STAC.default_io(), kw...)
-    Raster(client::Client, asset::Asset; kw...)
+    Raster(asset::STAC.Asset; io = STAC.default_io(), kw...)
+    Raster(client::STAC.Client, asset::STAC.Asset; kw...)
 
 The pixels an [`Asset`](@ref) points at, opened through the driver its media type names and
 the credentials `io` carries for its href. Every other keyword goes to
@@ -106,11 +106,12 @@ The `Client` form is the one to reach for on a credentialed endpoint: it opens t
 the same auth the search that found it ran under.
 
 ```julia
-using STAC, Rasters, ArchGDAL
+import STAC
+using Rasters, ArchGDAL
 
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1";
-                auth = PlanetaryComputerSAS())
-item = first(search(client; collections = ["sentinel-2-l2a"], limit = 1))
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1";
+                     auth = STAC.PlanetaryComputerSAS())
+item = first(STAC.search(client; collections = ["sentinel-2-l2a"], limit = 1))
 red = Raster(client, STAC.asset(item, "B04"); lazy = true)
 size(red)                       # (10980, 10980)
 red[1000:1010, 1000:1010]       # one window, one range request
@@ -163,7 +164,7 @@ function checkgrid(item::Item, names::Vector{String}, assets::Vector{Asset})
 end
 
 """
-    RasterStack(item::Item, keys; io = STAC.default_io(), kw...)
+    RasterStack(item::STAC.Item, keys; io = STAC.default_io(), kw...)
 
 The named assets of one [`Item`](@ref) as the layers of one stack, keyed as the item keys
 them. `keys` is a vector or a tuple of strings or symbols.
@@ -173,11 +174,12 @@ their shapes: a 10 m band and a 20 m band share no grid, and which resampling br
 onto one is a choice the data makes, not the stack.
 
 ```julia
-using STAC, Rasters, ArchGDAL
+import STAC
+using Rasters, ArchGDAL
 
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1";
-                auth = PlanetaryComputerSAS())
-item = first(search(client; collections = ["sentinel-2-l2a"], limit = 1))
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1";
+                     auth = STAC.PlanetaryComputerSAS())
+item = first(STAC.search(client; collections = ["sentinel-2-l2a"], limit = 1))
 st = RasterStack(item, ["B04", "B03", "B02"]; io = client.io, lazy = true)
 keys(st)                        # (:B04, :B03, :B02)
 size(st)                        # (10980, 10980)
@@ -234,11 +236,13 @@ An item that states neither `datetime` nor `start_datetime` raises a
 [`STAC.MissingDatetime`](@ref) naming it.
 
 ```julia
-using STAC, Rasters, ArchGDAL
+import STAC
+using Dates, Rasters, ArchGDAL
 
-client = Client("https://earth-search.aws.element84.com/v1")
-found = collect(search(client; collections = ["sentinel-2-l2a"],
-                       datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 5)), limit = 4))
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
+found = collect(STAC.search(client; collections = ["sentinel-2-l2a"],
+                            datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 5)),
+                            limit = 4))
 series = RasterSeries(found, "red"; lazy = true)
 dims(series, Ti)
 ```

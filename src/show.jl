@@ -188,6 +188,78 @@ function Base.show(io::IO, idx::SpatialIndex)
 end
 
 # ---------------------------------------------------------------------------------------
+# The IO stack. A stack is nested, so the one-line form chains the wrappers with `→` and the
+# `text/plain` form draws the tree, each route's scheme beside the transport that answers it.
+# An auth appears as its type name alone: a credential is a value this must never print.
+
+"""
+    STAC.iosummary(out::IO, io::AbstractIO)
+
+One [`AbstractIO`](@ref STAC.AbstractIO) on its own, without what it wraps. This is a node of
+the tree `show(out, MIME"text/plain"(), io)` draws, and a transport names its credentials by
+type — [`BearerToken`](@ref) rather than the token it holds.
+
+Give a transport of your own a method to have it print as itself; the default names the type.
+"""
+iosummary(out::IO, io::AbstractIO) = print(out, nameof(typeof(io)))
+
+iosummary(out::IO, ::PathIO) = print(out, "PathIO()")
+
+iosummary(out::IO, io::HTTPIO) = print(out, "HTTPIO(", nameof(typeof(io.auth)), ")")
+
+iosummary(out::IO, io::CachingIO) =
+    print(out, "CachingIO(", length(io.cache), "/", io.cache.maxsize, " cached)")
+
+iosummary(out::IO, io::StreamRouterIO) =
+    print(out, "StreamRouterIO(", length(io.routes), " routes)")
+
+"""
+    STAC.iochildren(io::AbstractIO) -> Tuple{Vararg{Pair{String}}}
+
+The transports `io` forwards to, each with the label that says why: a router labels each
+child with the scheme it answers, a wrapper with one child labels it `""`, and a transport
+that fetches for itself has none.
+"""
+iochildren(::AbstractIO) = ()
+
+iochildren(io::CachingIO) = ("" => io.inner,)
+
+iochildren(io::StreamRouterIO) = map(r -> repr(r.first) => r.second, io.routes)
+
+function Base.show(out::IO, io::AbstractIO)
+    iosummary(out, io)
+    kids = iochildren(io)
+    length(kids) == 1 && (print(out, " → "); show(out, last(only(kids))))
+    return nothing
+end
+
+# The schemes are what a reader wants from a router at a glance, so the one-line form lists
+# them where the tree gives each one a line of its own.
+function Base.show(out::IO, io::StreamRouterIO)
+    print(out, "StreamRouterIO(", join((repr(r.first) for r in io.routes), ", "), ")")
+    return nothing
+end
+
+function Base.show(out::IO, ::MIME"text/plain", io::AbstractIO)
+    iosummary(out, io)
+    showbranches(out, iochildren(io), "")
+    return nothing
+end
+
+function showbranches(out::IO, kids, indent::AbstractString)
+    isempty(kids) && return nothing
+    width = maximum(length(first(k)) for k in kids)
+    for (i, (label, child)) in enumerate(kids)
+        final = i == length(kids)
+        print(out, "\n", indent, final ? "└─ " : "├─ ")
+        isempty(label) || print(out, rpad(label, width), " → ")
+        iosummary(out, child)
+        showbranches(out, iochildren(child), string(indent, final ? "   " : "│  "))
+    end
+    return nothing
+end
+
+# ---------------------------------------------------------------------------------------
 # Client and searches. Neither form fetches anything: printing a search must not run it.
 
 function Base.show(io::IO, client::Client)
@@ -217,6 +289,9 @@ function Base.show(io::IO, ::MIME"text/plain", s::APIItemSearch)
     s.body === nothing || showline(io, "body", JSON.json(s.body; style = STACStyle()))
     showline(io, "items")
     showtypename(io, "Item", prefixes(eltype(typeof(s))))
+    # Whether `matched(s)` will be a number is a property of the host, known without asking.
+    showline(io, "matched", reportsmatched(s) ? "one request away" :
+                            "not reported by this endpoint")
     return nothing
 end
 

@@ -24,18 +24,19 @@ The same keywords work on every endpoint, and paging follows each one's `next` l
 whichever of the three shapes it takes.
 
 ```julia
-using STAC, Extents, Dates
+import STAC
+using Extents, Dates
 
-client = Client("https://earth-search.aws.element84.com/v1")
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
 
-s = search(client;
-           collections = ["sentinel-2-l2a"],
-           intersects  = Extent(X = (-123.0, -122.0), Y = (37.0, 38.0)),   # lon/lat
-           datetime    = (DateTime(2024, 6, 1), DateTime(2024, 6, 30)),
-           query       = Dict("eo:cloud_cover" => Dict("lt" => 10)),
-           limit       = 20)
+s = STAC.search(client;
+                collections = ["sentinel-2-l2a"],
+                intersects  = Extent(X = (-123.0, -122.0), Y = (37.0, 38.0)),   # lon/lat
+                datetime    = (DateTime(2024, 6, 1), DateTime(2024, 6, 30)),
+                query       = Dict("eo:cloud_cover" => Dict("lt" => 10)),
+                limit       = 20)
 
-matched(s)          # 28: the endpoint's own count, one request
+STAC.matched(s)     # 28: the endpoint's own count, one request
 found = collect(s)  # 28 items, over the two pages that takes
 
 found[1]
@@ -50,25 +51,29 @@ found[1]
 found[1].extensions.eo.cloud_cover      # 0.000567, a Float64 field read
 ```
 
-`search` checks its arguments against the endpoint's `conformsTo` before sending anything, so
-a `filter` an endpoint cannot answer raises at the call site rather than 400ing pages later.
+`STAC.search` checks its arguments against the endpoint's `conformsTo` before sending
+anything, so a `filter` an endpoint cannot answer raises at the call site rather than 400ing
+pages later.
+
+Every name this package owns is reached as `STAC.<name>`, which is what `import STAC` above
+buys: one spelling for everything, whether or not the package exports it.
 
 ### 2. Walk a static catalog with the same keywords
 
-`STAC.read` takes a local path, an `https://` URL, or an `S3Path`, and `search` on what comes
-back takes the keywords the API search takes. This one reads the catalog that ships with the
-package.
+`STAC.read` takes a local path, an `https://` URL, or an `S3Path`, and `STAC.search` on what
+comes back takes the keywords the API search takes. This one reads the catalog that ships
+with the package.
 
 ```julia
-using STAC
+import STAC
 
 examples = joinpath(pkgdir(STAC), "test", "fixtures", "static", "self-contained")
 cat = STAC.read(joinpath(examples, "catalog.json"))
 
-[c.id for c in children(cat)]                       # ["simple-collection", "empty-collection"]
-its = collect(items(cat; recursive = true))         # 4 items, one request per document
+[c.id for c in STAC.children(cat)]                  # ["simple-collection", "empty-collection"]
+its = collect(STAC.items(cat; recursive = true))    # 4 items, one request per document
 
-matched(search(cat; collections = "simple-collection"))     # 3
+STAC.matched(STAC.search(cat; collections = "simple-collection"))     # 3
 ```
 
 ### 3. Items are features and tables
@@ -96,7 +101,7 @@ opt-in for a region well away from both.
 ```julia
 using DE9IM, Extents
 
-idx  = spatialindex(found)                                  # RTree on Spherical()
+idx  = STAC.spatialindex(found)                             # RTree on Spherical()
 hits = STAC.query(idx, Extent(X = (-122.6, -122.3), Y = (37.7, 37.9)))
 sel  = found[hits]
 
@@ -124,9 +129,9 @@ A credentialed endpoint takes one keyword, and it serves both the catalog reques
 pixels:
 
 ```julia
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1";
-                auth = PlanetaryComputerSAS())
-item = first(search(client; collections = ["sentinel-2-l2a"], limit = 1))
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1";
+                     auth = STAC.PlanetaryComputerSAS())
+item = first(STAC.search(client; collections = ["sentinel-2-l2a"], limit = 1))
 Raster(client, STAC.asset(item, "B04"); lazy = true)    # SAS-signed, opened through /vsicurl/
 ```
 

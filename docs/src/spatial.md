@@ -1,7 +1,8 @@
 ```@meta
 CurrentModule = STAC
 DocTestSetup = quote
-    using STAC, Extents, GeometryOps
+    import STAC
+    using Extents, GeometryOps
 end
 ```
 
@@ -17,7 +18,7 @@ straddles the antimeridian, two cover a pole, and one is unlocated.
 ```jldoctest spatial
 julia> edges = joinpath(pkgdir(STAC), "test", "fixtures", "hand", "antimeridian-catalog");
 
-julia> its = collect(items(STAC.read(joinpath(edges, "catalog.json")); recursive = true));
+julia> its = collect(STAC.items(STAC.read(joinpath(edges, "catalog.json")); recursive = true));
 
 julia> [i.id for i in its]
 7-element Vector{String}:
@@ -29,7 +30,7 @@ julia> [i.id for i in its]
  "outside-corner"
  "unlocated"
 
-julia> idx = spatialindex(its);
+julia> idx = STAC.spatialindex(its);
 
 julia> length(idx)      # every item, indexed or not
 7
@@ -41,9 +42,9 @@ julia> [its[i].id for i in hits]
  "bay-area"
 ```
 
-`query` is reached as `STAC.query`: GeometryOps and SortTileRecursiveTree both export a
+`STAC.query` is a name three packages have: GeometryOps and SortTileRecursiveTree export a
 `query` of their own, and a session holding any two of the three would find the bare name
-ambiguous.
+ambiguous. Qualifying is what every example here does in any case.
 
 ## Why the sphere
 
@@ -57,7 +58,7 @@ julia> [its[i].id for i in STAC.query(idx, box)]
 1-element Vector{String}:
  "straddle"
 
-julia> planar = spatialindex(its; manifold = GeometryOps.Planar());
+julia> planar = STAC.spatialindex(its; manifold = GeometryOps.Planar());
 
 julia> STAC.query(planar, box)                            # the same box, read as a rectangle
 Int64[]
@@ -129,7 +130,7 @@ the wrapped geometry's `intersects` as a coarse filter, and each page is then fi
 through the exact predicate before the caller sees it.
 
 ```jldoctest spatial
-julia> s = search(STAC.read(joinpath(edges, "catalog.json")); intersects = Within(region));
+julia> s = STAC.search(STAC.read(joinpath(edges, "catalog.json")); intersects = Within(region));
 
 julia> [i.id for i in s]
 1-element Vector{String}:

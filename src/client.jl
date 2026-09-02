@@ -2,7 +2,7 @@
 # quirks table that turns the choices the spec leaves open into data.
 
 """
-    HostDefaults(max_limit, default_limit, reports_matched, dotdot_ok)
+    STAC.HostDefaults(max_limit, default_limit, reports_matched, dotdot_ok)
 
 What one endpoint does with the four things STAC API 1.0.0 leaves to the server. A
 [`Client`](@ref) matches one from [`STAC.HOST_DEFAULTS`](@ref) at construction, and a caller
@@ -61,7 +61,7 @@ function host_defaults(url::AbstractString)
 end
 
 """
-    Client(url; auth = NoAuth(), io = STAC.defaultstack(auth), host = nothing)
+    STAC.Client(url; auth = STAC.NoAuth(), io = STAC.defaultstack(auth), host = nothing)
 
 A STAC API, opened by reading its landing page once. The client holds that catalog, the
 `conformsTo` list it advertises, the [`AbstractIO`](@ref STAC.AbstractIO) every later call
@@ -72,11 +72,11 @@ The landing page is always parsed keeping its metadata tail, because `conformsTo
 per call.
 
 ```julia
-client = Client("https://planetarycomputer.microsoft.com/api/stac/v1")
+client = STAC.Client("https://planetarycomputer.microsoft.com/api/stac/v1")
 client.root.id                                  # "microsoft-pc"
 STAC.conforms(client, "item-search")            # true
 client.host.max_limit                           # 1000, from the recorded host table
-first(search(client; collections = ["sentinel-2-l2a"], limit = 10)).id
+first(STAC.search(client; collections = ["sentinel-2-l2a"], limit = 10)).id
 ```
 
 A credentialed endpoint takes an [`STAC.AbstractAuth`](@ref) through `auth =`, and every
@@ -177,7 +177,7 @@ end
 @noinline _nocollections(href) = throw(MissingCollections(String(href)))
 
 """
-    collections(client; extensions, geometry, metadata) -> Vector{Collection}
+    STAC.collections(client; extensions, geometry, metadata) -> Vector{Collection}
 
 Every collection the endpoint's `data` link lists, each stamped with its own `self` href.
 
@@ -185,8 +185,8 @@ The keywords are [`ParseOptions`](@ref)'s. Endpoints page `/collections`; this r
 first page only, which is every collection on all six endpoints probed.
 
 ```julia
-client = Client("https://earth-search.aws.element84.com/v1")
-cols = collections(client)
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
+cols = STAC.collections(client)
 [c.id for c in cols]                # "sentinel-2-l2a", "landsat-c2-l2", …
 first(cols).href                    # its own `self` href, so its links resolve
 ```
@@ -203,15 +203,15 @@ end
 collections(client::Client; kw...) = collections(client, ParseOptions(; kw...))
 
 """
-    collection(client, id; extensions, geometry, metadata) -> Collection
+    STAC.collection(client, id; extensions, geometry, metadata) -> Collection
 
 One collection by id, from `<data href>/<id>`.
 
 ```julia
-client = Client("https://earth-search.aws.element84.com/v1")
+client = STAC.Client("https://earth-search.aws.element84.com/v1")
 col = STAC.collection(client, "sentinel-2-l2a")
 col.extent.spatial.bbox[1]          # the collection's footprint, as a bbox
-first(items(client, col)).id        # its first item, through /collections/<id>/items
+first(STAC.items(client, col)).id   # its first item, through /collections/<id>/items
 ```
 """
 function collection(client::Client, id::AbstractString, opts::ParseOptions)
@@ -223,9 +223,9 @@ collection(client::Client, id::AbstractString; kw...) =
     collection(client, id, ParseOptions(; kw...))
 
 """
-    items(client, collection_id; limit, datetime, bbox, extensions, geometry, metadata)
-    items(client, collection::Collection; …)
-    items(client, collection_id, opts::ParseOptions; …)
+    STAC.items(client, collection_id; limit, datetime, bbox, extensions, geometry, metadata)
+    STAC.items(client, collection::Collection; …)
+    STAC.items(client, collection_id, opts::ParseOptions; …)
 
 The items of one collection through the OGC API - Features endpoint
 (`/collections/<id>/items`), as an [`AbstractItemSearch`](@ref STAC.AbstractItemSearch): a
