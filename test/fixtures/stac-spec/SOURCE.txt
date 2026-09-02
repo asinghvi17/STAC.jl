@@ -1,0 +1,2 @@
+0fa147589ac5a6c92d8e8856bc81eb9c73779aff
+https://github.com/radiantearth/stac-spec examples/ at the commit above

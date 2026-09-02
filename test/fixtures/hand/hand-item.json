@@ -1,0 +1,21 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "id": "hand-1",
+  "custom_top": {"a": 1},
+  "geometry": {"type": "MultiPolygon", "coordinates": [[[[0, 0], [1, 0], [1, 1], [0, 0]]]]},
+  "bbox": [0, 0, -1, 1, 1, 5],
+  "properties": {
+    "datetime": "2024-06-12T18:59:21.123456Z",
+    "start_datetime": "2024-06-12T18:59:21+00:00",
+    "end_datetime": "2024-06-12T18:59:21+02:00",
+    "eo:cloud_cover": 3.5,
+    "proj:epsg": 4326,
+    "sat:orbit_state": "ascending",
+    "platform": "x"
+  },
+  "links": [{"href": "a", "rel": "self", "extra": true, "nested": {"k": [1, 2]}}],
+  "assets": {"data": {"href": "d", "roles": ["data"], "checksum:multihash": "abc"}},
+  "collection": null,
+  "zzz": "last"
+}

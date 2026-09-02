@@ -1,0 +1,13 @@
+[deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+GeoJSON = "61d90e0f-e114-555e-ac52-39dfb47a3ef9"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+StructUtils = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+Aqua = "0.8"
+SafeTestsets = "0.1"

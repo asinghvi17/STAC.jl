@@ -1,0 +1,77 @@
+@noinline _notstac(t) =
+    throw(ArgumentError("not a STAC document: `type` is " * repr(t) *
+                        ", expected \"Feature\", \"FeatureCollection\", \"Catalog\", or \"Collection\""))
+
+@noinline _notyped() = throw(ArgumentError("not a STAC document: no `type` key"))
+
+"""
+    STAC.doctype(doc::JSON.LazyValue) -> String
+
+The value of a document's `type` key, which is what selects the struct a parse targets.
+"""
+function doctype(doc::JSON.LazyValue)
+    t = get(doc, :type, nothing)
+    t === nothing && _notyped()
+    return t[]::String
+end
+
+"""
+    STAC.parse(bytes; extensions, geometry, metadata) -> Catalog | Collection | Item | ItemCollection
+    STAC.parse(bytes, T::Type)
+    STAC.parse(bytes, opts::ParseOptions)
+
+A STAC document from JSON bytes, a `String`, or a `JSON.LazyValue` sub-document. The one-
+argument form reads the document's `type` key and dispatches on it; passing `T` names the
+target type instead and is inferable.
+
+The keywords are [`ParseOptions`](@ref)'s.
+"""
+parse(bytes; kw...) = parse(bytes, ParseOptions(; kw...))
+
+parse(bytes, ::Type{T}) where {T} = JSON.parse(bytes, T; style = STACStyle())
+
+parse(bytes, opts::ParseOptions) = parse(JSON.lazy(bytes), opts)
+
+function parse(doc::JSON.LazyValue, opts::ParseOptions)
+    t = doctype(doc)
+    style = STACStyle()
+    if t == "Feature"
+        return JSON.parse(doc, itemtype(opts); style)
+    elseif t == "FeatureCollection"
+        return JSON.parse(doc, itemcollectiontype(opts); style)
+    elseif t == "Catalog"
+        return JSON.parse(doc, catalogtype(opts); style)
+    elseif t == "Collection"
+        return JSON.parse(doc, collectiontype(opts); style)
+    else
+        _notstac(t)
+    end
+end
+
+"""
+    STAC.sethref(obj, href) -> obj
+
+`obj` with its origin set to `href`. Only the outer struct is rebuilt; every field is shared
+with the original.
+"""
+@generated function sethref(obj::T, href::Union{String,Nothing}) where {T<:STACObject}
+    n = fieldcount(T)
+    args = Any[i == n ? :href : :(getfield(obj, $i)) for i in 1:n]
+    return Expr(:call, T, args...)
+end
+
+"""
+    STAC.read(path; extensions, geometry, metadata) -> Catalog | Collection | Item | ItemCollection
+
+The STAC document at a local path, with its `href` set to the absolute path it came from.
+The document's `type` key selects the struct; the keywords are [`ParseOptions`](@ref)'s.
+
+```julia
+item = STAC.read("test/fixtures/stac-spec/extended-item.json")
+item.extensions.eo.cloud_cover      # Float64
+```
+"""
+function read(path::AbstractString; kw...)
+    obj = parse(Base.read(path), ParseOptions(; kw...))
+    return sethref(obj, abspath(path))
+end

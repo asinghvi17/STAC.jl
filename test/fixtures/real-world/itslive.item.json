@@ -1,0 +1,143 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
+    "https://stac-extensions.github.io/alternate-assets/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/version/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/sat/v1.1.0/schema.json"
+  ],
+  "id": "LC08_L1GT_001016_20241111_20241118_02_T2_X_LC08_L1GT_001016_20260117_20260122_02_T2_G0120V02_P000",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -46.2992,
+          61.7355
+        ],
+        [
+          -45.1449,
+          61.7424
+        ],
+        [
+          -43.9905,
+          61.7382
+        ],
+        [
+          -42.837,
+          61.7231
+        ],
+        [
+          -41.6852,
+          61.6969
+        ],
+        [
+          -41.6162,
+          62.2512
+        ],
+        [
+          -41.5444,
+          62.8068
+        ],
+        [
+          -41.4694,
+          63.3635
+        ],
+        [
+          -41.3911,
+          63.9215
+        ],
+        [
+          -42.6448,
+          63.9502
+        ],
+        [
+          -43.9008,
+          63.9669
+        ],
+        [
+          -45.1578,
+          63.9714
+        ],
+        [
+          -46.4147,
+          63.9638
+        ],
+        [
+          -46.3839,
+          63.4049
+        ],
+        [
+          -46.3545,
+          62.8471
+        ],
+        [
+          -46.3263,
+          62.2907
+        ],
+        [
+          -46.2992,
+          61.7355
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -46.4147,
+    61.6969,
+    -41.3911,
+    63.9714
+  ],
+  "properties": {
+    "mid_datetime": "2025-06-15T14:13:13.816158Z",
+    "created": "2026-01-22T09:21:37Z",
+    "updated": "2026-01-22T09:21:37Z",
+    "latitude": 62.85,
+    "longitude": -43.9476,
+    "date_dt": 432.0,
+    "platform": "LC08",
+    "scene_1_id": "LC08_L1GT_001016_20241111_20241118_02_T2",
+    "scene_2_id": "LC08_L1GT_001016_20260117_20260122_02_T2",
+    "scene_1_frame": "001016",
+    "scene_2_frame": "001016",
+    "sat:orbit_state": "N/A",
+    "start_datetime": "2024-11-11T14:13:09.814436Z",
+    "end_datetime": "2026-01-17T14:13:17.817879Z",
+    "percent_valid_pixels": 0,
+    "proj:code": "EPSG:3413",
+    "version": "002",
+    "datetime": "2025-06-15T14:13:13.816158Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "https://its-live-data.s3.amazonaws.com/velocity_image_pair/landsatOLI/v02/N60W040/LC08_L1GT_001016_20241111_20241118_02_T2_X_LC08_L1GT_001016_20260117_20260122_02_T2_G0120V02_P000.nc",
+      "type": "application/netcdf",
+      "alternate": {
+        "s3": {
+          "href": "s3://its-live-data/velocity_image_pair/landsatOLI/v02/N60W040/LC08_L1GT_001016_20241111_20241118_02_T2_X_LC08_L1GT_001016_20260117_20260122_02_T2_G0120V02_P000.nc",
+          "alternate:name": "S3"
+        }
+      },
+      "roles": [
+        "data"
+      ]
+    },
+    "overview": {
+      "href": "https://its-live-data.s3.amazonaws.com/velocity_image_pair/landsatOLI/v02/N60W040/LC08_L1GT_001016_20241111_20241118_02_T2_X_LC08_L1GT_001016_20260117_20260122_02_T2_G0120V02_P000.png",
+      "type": "image/png",
+      "roles": [
+        "overview"
+      ]
+    },
+    "thumbnail": {
+      "href": "https://its-live-data.s3.amazonaws.com/velocity_image_pair/landsatOLI/v02/N60W040/LC08_L1GT_001016_20241111_20241118_02_T2_X_LC08_L1GT_001016_20260117_20260122_02_T2_G0120V02_P000_thumb.png",
+      "type": "image/png",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  },
+  "collection": "itslive-granules"
+}

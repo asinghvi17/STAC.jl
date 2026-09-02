@@ -2,3 +2,22 @@ name = "STAC"
 uuid = "bc6663c9-23f5-4e92-9ea2-fce884ff0bce"
 version = "0.1.0"
 authors = ["Anshul Singhvi <anshulsinghvi@gmail.com>"]
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Extents = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
+GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
+GeoJSON = "61d90e0f-e114-555e-ac52-39dfb47a3ef9"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+StructUtils = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
+
+[compat]
+Dates = "1"
+Extents = "0.1"
+GeoInterface = "1.6"
+GeoJSON = "0.8"
+JSON = "1.7"
+OrderedCollections = "1, 2"
+StructUtils = "2.8"
+julia = "1.10"
