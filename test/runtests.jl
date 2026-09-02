@@ -3,7 +3,8 @@ using Test, SafeTestsets
 # One testset file per source concern. `Pkg.test(test_args = ["parse", "write"])` runs a
 # subset; with no arguments every file runs, and the `--trim=safe` programs under
 # `test/compile/` run when they are named or `STAC_COMPILE_TESTS=1` is set.
-const TESTS = ["aqua", "objects", "parse", "write", "extensions", "real_world"]
+const TESTS = ["aqua", "objects", "parse", "write", "extensions", "real_world",
+               "resolve", "io", "traverse"]
 
 selected(name) = isempty(ARGS) || name in ARGS
 

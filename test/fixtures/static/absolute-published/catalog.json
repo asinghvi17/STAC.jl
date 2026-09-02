@@ -1,0 +1,34 @@
+{
+  "id": "examples",
+  "type": "Catalog",
+  "title": "Example Catalog",
+  "stac_version": "1.1.0",
+  "description": "This catalog is a simple demonstration of an example catalog that is used to organize a hierarchy of collections and their items.",
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://example.com/static/absolute-published/catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "root",
+      "href": "https://example.com/static/absolute-published/catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "child",
+      "href": "https://example.com/static/absolute-published/simple-collection/collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "child",
+      "href": "https://example.com/static/absolute-published/collection-only/collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "item",
+      "href": "https://example.com/static/absolute-published/collectionless-item.json",
+      "type": "application/json"
+    }
+  ]
+}

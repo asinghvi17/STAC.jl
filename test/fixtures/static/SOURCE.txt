@@ -1,0 +1,29 @@
+One static catalog, published three ways.
+
+The document bodies are the stac-spec examples vendored in ../stac-spec (catalog.json,
+collection.json, collection-only/collection.json, simple-item.json, core-item.json,
+extended-item.json, collectionless-item.json). Two things were rewritten:
+
+  ids     the three item examples all carry id "20201211_223832_CS2" upstream, which would
+          make a traversal test that compares id lists say nothing. Here they are
+          "simple-item", "core-item", and "extended-item"; the collections are
+          "simple-collection" and "empty-collection".
+
+  links   replaced wholesale with the hierarchy below, in one of the three link styles the
+          spec's best-practices document names.
+
+    catalog.json                                    id "examples"
+      item  -> collectionless-item.json             id "collectionless-item"
+      child -> simple-collection/collection.json    id "simple-collection"
+                 item -> simple-item.json           id "simple-item"
+                 item -> core-item.json             id "core-item"
+                 item -> extended-item.json         id "extended-item"
+      child -> collection-only/collection.json      id "empty-collection", no items
+
+  self-contained/      no self links anywhere; every hierarchy link relative
+  relative-published/  one absolute self on the root; every hierarchy link relative
+  absolute-published/  absolute self and hierarchy links on every object
+
+The absolute forms are rooted at https://example.com/static/<style>/, which is not a real
+host: the traversal tests reach it through test/FixtureIO.jl, which maps that prefix onto
+this directory and raises on any href it was not given.

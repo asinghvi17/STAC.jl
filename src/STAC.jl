@@ -11,8 +11,12 @@ using Dates
 using JSON
 using StructUtils
 using OrderedCollections: OrderedDict
+using LRUCache: LRU
 
 import GeoJSON
+import HTTP
+import ScopedValues
+import URIs
 
 include("metadata.jl")
 include("objects.jl")
@@ -23,10 +27,21 @@ include("parse/options.jl")
 include("parse/style.jl")
 include("parse/sinks.jl")
 include("parse/write.jl")
+include("io/interface.jl")
+include("io/auth.jl")
+include("io/resolve.jl")
+include("io/path.jl")
+include("io/http.jl")
+include("io/caching.jl")
+include("io/router.jl")
+include("io/default.jl")
+include("traverse.jl")
 include("read.jl")
 
 export Asset, Band, Catalog, Collection, CollectionExtent, Item, ItemCollection, Link,
        Metadata, NoMetadata, Properties, Provider, SpatialExtent, TemporalExtent
 export EO, Projection
+export AbstractIO, BearerToken, CachingIO, HTTPIO, NoAuth, PathIO, StreamRouterIO
+export children, items
 
 end # module STAC

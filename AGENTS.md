@@ -15,6 +15,7 @@ adding a file, a method, or a test.
 | `src/` | the package, one file per concern |
 | `src/extensions/` | `interface.jl` plus one file per shipped STAC extension |
 | `src/parse/` | the JSON style, its sinks, the writer, and `ParseOptions` |
+| `src/io/` | the `AbstractIO` stack, auth, and href resolution: one wrapper per file |
 | `ext/` | weak-dependency bridges, one module per trigger package |
 | `test/fixtures/` | vendored documents; nothing here is fetched at test time |
 | `test/compile/` | `juliac --trim=safe` programs and the testset that builds them |
@@ -63,9 +64,15 @@ Fixtures are vendored, never fetched during a test run.
 | `test/fixtures/stac-spec/` | the `examples/` directory of radiantearth/stac-spec, pinned in `SOURCE.txt` |
 | `test/fixtures/hand/` | hand-written documents covering shapes the spec examples miss |
 | `test/fixtures/real-world/` | one recorded response per public endpoint, recorded once with `curl` |
+| `test/fixtures/static/` | one catalog published three ways, derived from the spec examples |
 
 Re-record a real-world fixture with the same URL and a `STAC.jl` User-Agent, and keep the
 response body byte-for-byte as the server sent it.
+
+Tests reach a fixture through `test/FixtureIO.jl`, which mounts a directory at an href
+prefix and raises on any href it was not given. Fetching goes through the production
+`AbstractIO` seam, never around it; the one exception is `test/io.jl`, which serves the same
+fixtures over a loopback `HTTP.serve` so the HTTP path is exercised over real sockets.
 
 ## Tests
 

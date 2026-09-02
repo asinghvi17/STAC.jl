@@ -5,6 +5,14 @@ const FIXTURES = joinpath(@__DIR__, "fixtures")
 const SPEC_DIR = joinpath(FIXTURES, "stac-spec")
 const HAND_DIR = joinpath(FIXTURES, "hand")
 const REAL_DIR = joinpath(FIXTURES, "real-world")
+const STATIC_DIR = joinpath(FIXTURES, "static")
+
+# The one catalog of `fixtures/static/`, published three ways, and what a depth-first walk of
+# it yields. See `fixtures/static/SOURCE.txt`.
+const LINK_STYLES = ("self-contained", "relative-published", "absolute-published")
+const STATIC_BASE = "https://example.com/static/"
+const STATIC_ITEM_IDS = ["collectionless-item", "simple-item", "core-item", "extended-item"]
+const STATIC_CHILD_IDS = ["simple-collection", "empty-collection"]
 
 """
     jsonfiles(dir) -> Vector{String}

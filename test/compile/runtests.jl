@@ -26,9 +26,26 @@ function build(program::String, outdir::String)
     return exe, ok, String(take!(log))
 end
 
+"""
+    resolveenv()
+
+Bring `test/compile/`'s manifest in line with the package's current dependencies. The
+manifest is not checked in, and this environment tracks `../..` through `[sources]`, so a
+dependency added to the package reaches the trim programs only after this runs.
+"""
+function resolveenv()
+    cmd = addenv(`$(Base.julia_cmd()) --project=$COMPILE_DIR -e
+                  "using Pkg; Pkg.resolve(); Pkg.instantiate()"`,
+                 "JULIA_LOAD_PATH" => nothing, "JULIA_PROJECT" => nothing)
+    log = IOBuffer()
+    success(pipeline(cmd; stdout = log, stderr = log)) || println(String(take!(log)))
+    return nothing
+end
+
 if VERSION < v"1.12"
     @info "skipping the --trim=safe programs: juliac needs Julia 1.12" VERSION
 else
+    resolveenv()
     mktempdir() do outdir
         @testset "read_item.jl builds under --trim=safe" begin
             exe, ok, log = build("read_item.jl", outdir)

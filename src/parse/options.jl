@@ -69,3 +69,11 @@ catalogtype(::ParseOptions{E,G,M}) where {E,G,M} = Catalog{M}
 The `Collection{M}` these options name.
 """
 collectiontype(::ParseOptions{E,G,M}) where {E,G,M} = Collection{M}
+
+"""
+    STAC.childtype(opts::ParseOptions) -> Type
+
+What a `child`, `parent`, or `root` link resolves to: `Union{Catalog{M}, Collection{M}}`,
+narrowed to one of the two by the document's own `type` key.
+"""
+childtype(::ParseOptions{E,G,M}) where {E,G,M} = Union{Catalog{M},Collection{M}}

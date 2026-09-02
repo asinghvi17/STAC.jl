@@ -61,9 +61,13 @@ with the original.
 end
 
 """
-    STAC.read(path; extensions, geometry, metadata) -> Catalog | Collection | Item | ItemCollection
+    STAC.read(href; io = STAC.default_io(), extensions, geometry, metadata)
+        -> Catalog | Collection | Item | ItemCollection
 
-The STAC document at a local path, with its `href` set to the absolute path it came from.
+The STAC document at `href`, with its origin recorded so [`children`](@ref) and
+[`items`](@ref) can resolve its relative links. `href` is a local path, an `https://` URL, or
+anything else the `io` stack routes; a local path is made absolute first.
+
 The document's `type` key selects the struct; the keywords are [`ParseOptions`](@ref)'s.
 
 ```julia
@@ -71,7 +75,7 @@ item = STAC.read("test/fixtures/stac-spec/extended-item.json")
 item.extensions.eo.cloud_cover      # Float64
 ```
 """
-function read(path::AbstractString; kw...)
-    obj = parse(Base.read(path), ParseOptions(; kw...))
-    return sethref(obj, abspath(path))
+function read(href::AbstractString; io::AbstractIO = default_io(), kw...)
+    origin = absolutehref(href)
+    return sethref(parse(read(io, origin), ParseOptions(; kw...)), origin)
 end
