@@ -73,9 +73,14 @@ per call.
 
 ```julia
 client = Client("https://planetarycomputer.microsoft.com/api/stac/v1")
+client.root.id                                  # "microsoft-pc"
 STAC.conforms(client, "item-search")            # true
-first(search(client; collections = ["sentinel-2-l2a"], limit = 10))
+client.host.max_limit                           # 1000, from the recorded host table
+first(search(client; collections = ["sentinel-2-l2a"], limit = 10)).id
 ```
+
+A credentialed endpoint takes an [`STAC.AbstractAuth`](@ref) through `auth =`, and every
+later call fetches with it.
 """
 struct Client{I<:AbstractIO}
     url::String
@@ -124,9 +129,7 @@ function conforms(client::Client, class::AbstractString)
     return any(c -> endswith(c, suffix), client.conformsTo)
 end
 
-@noinline _nolink(client::Client, rel) =
-    throw(ArgumentError("the landing page of " * client.url * " has no `" * String(rel) *
-                        "` link, so this call has nothing to fetch"))
+@noinline _nolink(client::Client, rel) = throw(MissingLink(client.url, String(rel)))
 
 """
     STAC.linkhref(obj, rel; method = nothing) -> Union{String,Nothing}
@@ -163,8 +166,7 @@ function selfhref(obj)
     return nothing
 end
 
-@noinline _nocollections(href) =
-    throw(ArgumentError("the document at " * href * " has no `collections` array"))
+@noinline _nocollections(href) = throw(MissingCollections(String(href)))
 
 """
     collections(client; extensions, geometry, metadata) -> Vector{Collection}
@@ -173,6 +175,13 @@ Every collection the endpoint's `data` link lists, each stamped with its own `se
 
 The keywords are [`ParseOptions`](@ref)'s. Endpoints page `/collections`; this reads the
 first page only, which is every collection on all six endpoints probed.
+
+```julia
+client = Client("https://earth-search.aws.element84.com/v1")
+cols = collections(client)
+[c.id for c in cols]                # "sentinel-2-l2a", "landsat-c2-l2", …
+first(cols).href                    # its own `self` href, so its links resolve
+```
 """
 function collections(client::Client, opts::ParseOptions)
     href = requiredlink(client, "data")
@@ -189,6 +198,13 @@ collections(client::Client; kw...) = collections(client, ParseOptions(; kw...))
     collection(client, id; extensions, geometry, metadata) -> Collection
 
 One collection by id, from `<data href>/<id>`.
+
+```julia
+client = Client("https://earth-search.aws.element84.com/v1")
+col = collection(client, "sentinel-2-l2a")
+col.extent.spatial.bbox[1]          # the collection's footprint, as a bbox
+first(items(client, col)).id        # its first item, through /collections/<id>/items
+```
 """
 function collection(client::Client, id::AbstractString, opts::ParseOptions)
     href = rstrip(requiredlink(client, "data"), '/') * "/" * id

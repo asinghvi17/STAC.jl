@@ -8,6 +8,7 @@ concrete and whose remaining keys round-trip through [`STAC.json`](@ref).
 module STAC
 
 using Dates
+using DocStringExtensions: FIELDS
 using JSON
 using StructUtils
 using OrderedCollections: OrderedDict
@@ -25,6 +26,7 @@ import ScopedValues
 import Tables
 import URIs
 
+include("errors.jl")
 include("metadata.jl")
 include("objects.jl")
 include("extensions/interface.jl")
@@ -47,11 +49,12 @@ include("io/caching.jl")
 include("io/router.jl")
 include("io/default.jl")
 include("traverse.jl")
-include("read.jl")
+include("document.jl")
 include("geo.jl")
 include("spatialindex.jl")
 include("client.jl")
-include("search.jl")
+include("search/interface.jl")
+include("search/backends.jl")
 include("tables.jl")
 include("dataapi.jl")
 include("show.jl")

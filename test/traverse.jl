@@ -128,5 +128,5 @@ end
     # The item link, read as though it were a child link.
     bad = STAC.LinkIterator{STAC.childtype(ParseOptions())}(
         STAC.rellinks(cat, "item"), cat.href, io, ParseOptions())
-    @test_throws ArgumentError collect(bad)
+    @test_throws STAC.WrongDocumentType collect(bad)
 end

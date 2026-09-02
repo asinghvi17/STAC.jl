@@ -45,6 +45,17 @@ function StructUtils.lower(::STACStyle, g::GeoJSON.AbstractGeometry)
     o["coordinates"] = getfield(g, :coordinates)
     return o
 end
+
+# A GeometryCollection carries member geometries where every other geometry carries
+# positions; `intersects =` accepts one, so the body it goes into has to write it.
+function StructUtils.lower(::STACStyle, g::GeoJSON.GeometryCollection)
+    o = JSON.Object{String,Any}()
+    o["type"] = "GeometryCollection"
+    putif!(o, "bbox", getfield(g, :bbox))
+    o["geometries"] = getfield(g, :geometries)
+    return o
+end
+
 StructUtils.lower(::STACStyle, m::Metadata) = m.data
 StructUtils.lower(::STACStyle, ::NoMetadata) = JSON.Object{String,Any}()
 
@@ -213,6 +224,13 @@ are written under their prefixes inside `properties`, and every key the parse ke
 metadata tail returns in the order the producer wrote it.
 
 Keywords are JSON.jl's, so `pretty = 2` gives an indented document.
+
+```julia
+item = STAC.read("test/fixtures/stac-spec/simple-item.json")
+STAC.parse(STAC.json(item)).id == item.id    # true: what is written parses back
+STAC.json(item; pretty = 2)                  # the same document, indented
+open(io -> STAC.json(io, item), "item.json", "w")
+```
 """
 json(obj; kw...) = JSON.json(obj; style = STACStyle(), kw...)
 json(io::IO, obj; kw...) = JSON.json(io, obj; style = STACStyle(), kw...)

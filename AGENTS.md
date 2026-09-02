@@ -10,11 +10,17 @@ adding a file, a method, or a test.
 `src/STAC.jl`, and `test/<name>.jl` mirrors it as a `@safetestset` listed in
 `test/runtests.jl`.
 
+A file at the top of `src/` never repeats the name of a directory beside it: the document
+layer is `src/document.jl`, not `src/read.jl`, which would read as `src/io/`'s twin.
+
 | Directory | Holds |
 |---|---|
 | `src/` | the package, one file per concern |
+| `src/errors.jl` | every exception the package throws, under one `STACError` supertype |
+| `src/document.jl` | `STAC.parse` and `STAC.read`: the `type` key choosing a struct, and `sethref` |
 | `src/extensions/` | `interface.jl` plus one file per shipped STAC extension |
 | `src/parse/` | the JSON style, its sinks, the writer, and `ParseOptions` |
+| `src/search/` | `interface.jl`: the search protocol and the request its keywords build; `backends.jl`: the API and static searches |
 | `src/io/` | the `AbstractIO` stack, auth, and href resolution: one wrapper per file |
 | `ext/` | weak-dependency bridges, one module per trigger package |
 | `test/fixtures/` | vendored documents; nothing here is fetched at test time |
@@ -27,6 +33,23 @@ adding a file, a method, or a test.
 - **`GI.*` accessors.** Reach a geometry through GeoInterface, never through a concrete
   type's fields.
 - **`io` last, as a keyword with a default.** `children(cat; io = default_io())`.
+
+## Errors
+
+Every raise goes through `src/errors.jl`. A new failure mode gets three things:
+
+1. **A struct under one of the four groups** — `DocumentError`, `LookupError`,
+   `ArgumentShapeError`, `EndpointError` — all of them under `STACError`, so a caller can
+   catch the package as a class. Reuse a struct when the shape of the complaint matches;
+   `WrongJSONType` covers both "expected an object" and "expected an array".
+2. **Fields carrying the values the message names**, as `String`, `Int`, or `Symbol`. A
+   `Type` field would make `showerror` a dynamic dispatch; the throw site spells `string(T)`
+   where `T` is a static parameter and the trim verifier can resolve it.
+3. **A `Base.showerror` that `print`s its fields one argument at a time.** Interpolation and
+   `sprint` in an error path are what `--trim=safe` reports as unresolved calls.
+
+The throw site stays a `@noinline` helper (`_nolink`, `_badbbox`) that only builds the
+struct, which keeps the raise out of the caller's inlined code.
 
 ## Parsing
 

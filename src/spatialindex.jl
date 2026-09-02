@@ -32,8 +32,14 @@ Items that locate themselves nowhere — no `bbox` and no geometry — stay out 
 never appear among the hits.
 
 ```julia
-idx = spatialindex(items)
-STAC.query(idx, Extent(X = (-123, -122), Y = (37, 38)))
+using Extents
+
+cat = STAC.read("test/fixtures/hand/antimeridian-catalog/catalog.json")
+idx = spatialindex(collect(items(cat; recursive = true)))
+length(idx)                                             # 7, every item indexed or not
+
+hits = STAC.query(idx, Extent(X = (-123, -122), Y = (37, 38)))
+idx.items[first(hits)].id                               # "bay-area"
 ```
 """
 function spatialindex(m::GO.Manifold, items::AbstractVector)
@@ -67,8 +73,16 @@ exact second pass over the survivors, evaluated by GeometryOps on the same manif
 `nothing` matches every item, including the ones the tree leaves out.
 
 ```julia
-using DE9IM
-STAC.query(idx, Within(region))
+using DE9IM, Extents
+
+cat = STAC.read("test/fixtures/hand/antimeridian-catalog/catalog.json")
+idx = spatialindex(collect(items(cat; recursive = true)))
+
+# A box across the antimeridian is one box on the sphere.
+[idx.items[i].id for i in STAC.query(idx, Extent(X = (170, -170), Y = (60, 70)))]  # ["straddle"]
+
+region = STAC.read("test/fixtures/hand/antimeridian-catalog/mid/greenwich.json").geometry
+[idx.items[i].id for i in STAC.query(idx, Within(region))]                         # ["greenwich"]
 ```
 """
 query(idx::SpatialIndex, ::Nothing) = Int[i for i in eachindex(idx.items)]
@@ -87,13 +101,12 @@ _treequery(tree, cap::GO.UnitSpherical.SphericalCap) =
                                                     tree))::Vector{Int}
 
 @noinline _nopredicategeometry(pred) =
-    throw(ArgumentError(string(nameof(typeof(pred))) *
-                        "() carries no geometry to compare against; wrap one, as in " *
-                        string(nameof(typeof(pred))) * "(polygon)"))
+    throw(EmptyPredicate(string(nameof(typeof(pred)))))
 
 function query(idx::SpatialIndex, pred::DE9IM.DE9IMPredicate)::Vector{Int}
-    geom = parent(pred)
-    geom === nothing && _nopredicategeometry(pred)
+    wrapped = parent(pred)
+    wrapped === nothing && _nopredicategeometry(pred)
+    geom = float64geometry(wrapped)
     hits = _candidates(idx, pred, geom)
     alg = GO.RelateNG(idx.manifold)
     filter!(hits) do i

@@ -1,355 +1,5 @@
-# Item search. One protocol, `pages`, with two backends on it: a STAC API, and a static
-# catalog walked and filtered in memory.
-
-"""
-    STAC.AbstractItemSearch
-
-A prepared item search. A backend implements [`pages`](@ref), which yields
-[`ItemCollection`](@ref) values lazily, and everything a caller does with the search —
-iterating items, `Iterators.take`, `collect` — derives from it.
-
-| Method | Contract |
-|---|---|
-| `pages(s)` | an iterator of `ItemCollection`, one per request; required |
-| `matched(s)` | the total the endpoint reports, or `nothing`; optional |
-
-`IteratorSize` is `SizeUnknown()`, so `first` and `take` fetch only the pages they reach.
-"""
-abstract type AbstractItemSearch end
-
-"""
-    pages(s::AbstractItemSearch)
-
-The pages of a search, as a lazy iterator of [`ItemCollection`](@ref). One element is one
-request: the first is the search itself, each further one follows the previous page's `next`
-link.
-"""
-function pages end
-
-"""
-    matched(s::AbstractItemSearch) -> Union{Int,Nothing}
-
-The number of items the search matches in total, or `nothing` when the endpoint does not
-report one. Reading it costs one request, since the count lives on the first page.
-"""
-matched(::AbstractItemSearch) = nothing
-
-Base.IteratorSize(::Type{<:AbstractItemSearch}) = Base.SizeUnknown()
-
-"""
-    STAC.ItemSearchState
-
-Where a search is inside its pages: the page iterator and its state, the page in hand, and
-how many of that page's items have been yielded.
-"""
-struct ItemSearchState{P,S,C}
-    pageiter::P
-    pagestate::S
-    page::C
-    i::Int
-end
-
-# One item at a time out of the page in hand, pulling the next page when it runs out. A page
-# with no features is skipped rather than ending the search, because a filtered page can be
-# empty and still be followed by a `next` link.
-function _nextitem(it, pagestate, page, i)
-    while true
-        if page !== nothing && i < length(page.features)
-            return page.features[i + 1], ItemSearchState(it, pagestate, page, i + 1)
-        end
-        nxt = pagestate === nothing ? iterate(it) : iterate(it, pagestate)
-        nxt === nothing && return nothing
-        page, pagestate = nxt
-        i = 0
-    end
-end
-
-Base.iterate(s::AbstractItemSearch) = _nextitem(pages(s), nothing, nothing, 0)
-
-Base.iterate(::AbstractItemSearch, state::ItemSearchState) =
-    _nextitem(state.pageiter, state.pagestate, state.page, state.i)
-
-"""
-    STAC.nextlink(page::ItemCollection) -> Union{Link,Nothing}
-
-The `next` link of a page, which is a whole request template: `method`, `headers`, `body`,
-and `merge` all describe how to ask for the page after this one.
-"""
-function nextlink(page::ItemCollection)
-    for l in page.links
-        l.rel == "next" && return l
-    end
-    return nothing
-end
-
-"""
-    STAC.numbermatched(page::ItemCollection) -> Union{Int,Nothing}
-
-The total a page reports, from `numberMatched` or from the deprecated `context.matched` that
-the CMR endpoints still send.
-"""
-function numbermatched(page::ItemCollection)
-    page.numberMatched === nothing || return page.numberMatched
-    ctx = get(page.metadata, "context", nothing)
-    ctx isa AbstractDict || return nothing
-    n = get(ctx, "matched", nothing)
-    return n isa Real ? Int(n) : nothing
-end
-
-# ---------------------------------------------------------------------------------------
-# Request construction
-
-"""
-    STAC.normalize_datetime(x) -> Union{String,Nothing}
-
-A `datetime` argument as the RFC 3339 string a STAC API takes.
-
-| Argument | Sent |
-|---|---|
-| `nothing` | nothing; the search is unbounded in time |
-| `DateTime` | the instant, in UTC, ending in `Z` |
-| `Date` | the full-day interval, because four of five endpoints probed reject a date-only string |
-| `(start, stop)` of `DateTime`, `Date`, or `nothing` | `start/stop`, an open side written `..` |
-| `String` | passed through unchanged |
-"""
-normalize_datetime(::Nothing) = nothing
-normalize_datetime(s::AbstractString) = String(s)
-normalize_datetime(dt::DateTime) = format_rfc3339(dt)
-normalize_datetime(d::Date) = _daystart(d) * "/" * _dayend(d)
-normalize_datetime(interval::Tuple{Any,Any}) =
-    _intervalstart(interval[1]) * "/" * _intervalstop(interval[2])
-normalize_datetime(interval::AbstractVector) =
-    (length(interval) == 2 ? normalize_datetime((interval[1], interval[2])) :
-     throw(ArgumentError("a `datetime` interval is two values, got " * string(length(interval)))))
-
-_daystart(d::Date) = format_rfc3339(DateTime(d))
-_dayend(d::Date) = format_rfc3339(DateTime(d) + Day(1) - Millisecond(1))
-
-_intervalstart(::Nothing) = ".."
-_intervalstart(s::AbstractString) = String(s)
-_intervalstart(dt::DateTime) = format_rfc3339(dt)
-_intervalstart(d::Date) = _daystart(d)
-
-_intervalstop(::Nothing) = ".."
-_intervalstop(s::AbstractString) = String(s)
-_intervalstop(dt::DateTime) = format_rfc3339(dt)
-_intervalstop(d::Date) = _dayend(d)
-
-"""
-    STAC.TimeInterval
-
-The window a static search keeps items inside: a start and a stop, either of them `nothing`
-for an open side.
-"""
-const TimeInterval = Tuple{Union{DateTime,Nothing},Union{DateTime,Nothing}}
-
-"""
-    STAC.datetime_interval(x) -> STAC.TimeInterval
-
-A `datetime` argument as the pair of instants a client-side filter compares against. This is
-the counterpart of [`STAC.normalize_datetime`](@ref), which sends the same argument to a
-server; both read a bare date as the whole day.
-"""
-datetime_interval(::Nothing) = (nothing, nothing)
-datetime_interval(dt::DateTime) = (dt, dt)
-datetime_interval(d::Date) = (DateTime(d), DateTime(d) + Day(1) - Millisecond(1))
-datetime_interval(t::Tuple{Any,Any}) = (_boundstart(t[1]), _boundstop(t[2]))
-
-datetime_interval(v::AbstractVector) =
-    (length(v) == 2 ? datetime_interval((v[1], v[2])) :
-     throw(ArgumentError("a `datetime` interval is two values, got " * string(length(v)))))
-
-function datetime_interval(s::AbstractString)
-    i = findfirst('/', s)
-    i === nothing && return (_boundstart(s), _boundstop(s))
-    return (_boundstart(SubString(s, 1, i - 1)), _boundstop(SubString(s, i + 1)))
-end
-
-_isopen(s::AbstractString) = isempty(s) || s == ".."
-_isdateonly(s::AbstractString) = length(s) == 10
-
-_boundstart(::Nothing) = nothing
-_boundstart(dt::DateTime) = dt
-_boundstart(d::Date) = DateTime(d)
-_boundstart(s::AbstractString) = _isopen(s) ? nothing : parse_rfc3339(s)
-
-_boundstop(::Nothing) = nothing
-_boundstop(dt::DateTime) = dt
-_boundstop(d::Date) = DateTime(d) + Day(1) - Millisecond(1)
-_boundstop(s::AbstractString) =
-    _isopen(s) ? nothing :
-    _isdateonly(s) ? parse_rfc3339(s) + Day(1) - Millisecond(1) : parse_rfc3339(s)
-
-"""
-    STAC.intimerange(item, interval::STAC.TimeInterval) -> Bool
-
-Whether an item falls in a search's window. An item with a `datetime` is one instant; an item
-with `start_datetime` and `end_datetime` is a span, and matches when the two spans overlap.
-An item that carries neither is outside every closed window.
-"""
-function intimerange(item::Item, interval::TimeInterval)
-    from, to = interval
-    (from === nothing && to === nothing) && return true
-    dt = item.properties.datetime
-    if dt !== nothing
-        return (from === nothing || dt >= from) && (to === nothing || dt <= to)
-    end
-    start, stop = item.properties.start_datetime, item.properties.end_datetime
-    (start === nothing && stop === nothing) && return false
-    (to === nothing || start === nothing || start <= to) || return false
-    return from === nothing || stop === nothing || stop >= from
-end
-
-@noinline _notgeometry(x) =
-    throw(ArgumentError("`intersects` takes a GeoInterface geometry, an `Extent`, or a " *
-                        "bbox of 4 or 6 numbers, not a " * string(typeof(x))))
-
-geomtypename(::GI.PointTrait) = "Point"
-geomtypename(::GI.LineStringTrait) = "LineString"
-geomtypename(::GI.PolygonTrait) = "Polygon"
-geomtypename(::GI.MultiPointTrait) = "MultiPoint"
-geomtypename(::GI.MultiLineStringTrait) = "MultiLineString"
-geomtypename(::GI.MultiPolygonTrait) = "MultiPolygon"
-
-# Positions are rebuilt as `Float64` rather than taken from `GI.coordinates`, whose element
-# type is the geometry's own: GeoJSON.jl defaults to `Float32`, and a request body that
-# rounds a longitude to seven digits searches a different place than the caller asked for.
-function coordinates(geom)
-    trait = GI.geomtrait(geom)
-    trait isa GI.PointTrait || return [coordinates(g) for g in GI.getgeom(geom)]
-    return GI.is3d(geom) ? Float64[GI.x(geom), GI.y(geom), GI.z(geom)] :
-           Float64[GI.x(geom), GI.y(geom)]
-end
-
-"""
-    STAC.geojsonobject(geom) -> JSON.Object{String,Any}
-
-Any GeoInterface geometry as the GeoJSON object a request body carries. This is what lets
-`intersects =` take a geometry from any package in the stack.
-"""
-function geojsonobject(geom)
-    trait = GI.geomtrait(geom)
-    trait === nothing && _notgeometry(geom)
-    o = JSON.Object{String,Any}()
-    if trait isa GI.GeometryCollectionTrait
-        o["type"] = "GeometryCollection"
-        o["geometries"] = Any[geojsonobject(g) for g in GI.getgeom(geom)]
-    else
-        o["type"] = geomtypename(trait)
-        o["coordinates"] = coordinates(geom)
-    end
-    return o
-end
-
-"""
-    STAC.classify(intersects) -> (kind, value)
-
-What a spatial argument becomes in a request body: `(:none, nothing)`, `(:bbox, numbers)`, or
-`(:intersects, geojson)`. Supplying both a `bbox` and an `intersects` is a 400 at every
-endpoint, so one argument carries both and its type decides.
-
-| Argument | `kind` |
-|---|---|
-| `nothing` | `:none` |
-| `Extents.Extent` with `X`/`Y`, optionally `Z` | `:bbox` |
-| a tuple or vector of 4 or 6 numbers | `:bbox` |
-| any GeoInterface geometry | `:intersects` |
-"""
-classify(::Nothing) = (:none, nothing)
-
-function classify(e::Extents.Extent{K}) where {K}
-    x = e.X
-    y = e.Y
-    :Z in K || return (:bbox, Float64[x[1], y[1], x[2], y[2]])
-    z = e.Z
-    return (:bbox, Float64[x[1], y[1], z[1], x[2], y[2], z[2]])
-end
-
-function classify(v::Union{Tuple,AbstractVector})
-    (length(v) == 4 || length(v) == 6) && all(x -> x isa Real, v) &&
-        return (:bbox, Float64[v...])
-    return _notgeometry(v)
-end
-
-classify(geom) = (:intersects, geojsonobject(geom))
-
-# A predicate travels to the server as its own geometry: `intersects` is the widest request
-# that can hold every item the predicate keeps, and the exact pass runs on what comes back.
-classify(p::DE9IM.DE9IMPredicate) = classify(parent(p))
-
-"""
-    STAC.predicate(intersects) -> Union{DE9IM.DE9IMPredicate,Nothing}
-
-The DE-9IM predicate an `intersects` argument carries, or `nothing` when it is a plain
-geometry, extent, or bbox. A search that has one runs it over every page it receives.
-"""
-predicate(::Any) = nothing
-predicate(p::DE9IM.DE9IMPredicate) =
-    parent(p) === nothing ? _nopredicategeometry(p) : p
-
-_stringlist(s::AbstractString) = String[String(s)]
-_stringlist(v) = String[String(x) for x in v]
-
-_sortentry(s::AbstractString) =
-    startswith(s, '-') ? JSON.Object{String,Any}("field" => String(s[2:end]), "direction" => "desc") :
-    JSON.Object{String,Any}("field" => String(lstrip(s, '+')), "direction" => "asc")
-_sortentry(x) = x
-
-_sortby(s::AbstractString) = Any[_sortentry(s)]
-_sortby(v) = Any[_sortentry(x) for x in v]
-
-"""
-    STAC.build_body(; collections, ids, intersects, datetime, query, filter, filter_lang,
-                    sortby, fields, limit) -> JSON.Object{String,Any}
-
-The POST body of one item search, with only the keys the caller named plus `limit`. This is
-the request the paging loop merges each `next` link into.
-"""
-function build_body(; collections = nothing, ids = nothing, intersects = nothing,
-                    datetime = nothing, query = nothing, filter = nothing,
-                    filter_lang = nothing, sortby = nothing, fields = nothing, limit::Int)
-    body = JSON.Object{String,Any}()
-    collections === nothing || (body["collections"] = _stringlist(collections))
-    ids === nothing || (body["ids"] = _stringlist(ids))
-    kind, value = classify(intersects)
-    kind === :none || (body[String(kind)] = value)
-    dt = normalize_datetime(datetime)
-    dt === nothing || (body["datetime"] = dt)
-    query === nothing || (body["query"] = query)
-    if filter !== nothing
-        body["filter"] = filter
-        body["filter-lang"] = filter_lang === nothing ? "cql2-json" : String(filter_lang)
-    end
-    sortby === nothing || (body["sortby"] = _sortby(sortby))
-    fields === nothing || (body["fields"] = fields)
-    body["limit"] = limit
-    return body
-end
-
-_queryvalue(v::AbstractString) = String(v)
-_queryvalue(v::Bool) = string(v)
-_queryvalue(v::Real) = string(v)
-_queryvalue(v::AbstractVector) =
-    all(x -> x isa Union{AbstractString,Real}, v) ? join(map(_queryvalue, v), ',') :
-    JSON.json(v; style = STACStyle())
-_queryvalue(v) = JSON.json(v; style = STACStyle())
-
-"""
-    STAC.querystring(body) -> String
-
-A search body as the query string its `GET` form takes: lists comma-joined, anything nested
-(`intersects`, `filter`, `query`) as JSON, everything percent-encoded.
-"""
-function querystring(body)
-    parts = String[]
-    for (k, v) in body
-        push!(parts, URIs.escapeuri(k) * "=" * URIs.escapeuri(_queryvalue(v)))
-    end
-    return join(parts, '&')
-end
-
-withquery(href::AbstractString, query::AbstractString) =
-    isempty(query) ? String(href) : String(href) * (occursin('?', href) ? "&" : "?") * query
+# The two backends on the search protocol: a STAC API, paged by following `next` links, and a
+# static catalog, walked once and filtered in memory.
 
 # ---------------------------------------------------------------------------------------
 # The API backend
@@ -491,12 +141,10 @@ function matched(s::APIItemSearch)
 end
 
 # ---------------------------------------------------------------------------------------
-# `search`
+# `search(client; …)`, and the features endpoint `items(client, collection)` reaches
 
-@noinline _noconformance(client::Client, class::AbstractString, why::AbstractString) =
-    throw(ArgumentError(client.url * " does not advertise the conformance class `" * class *
-                        "`, which " * why * " needs. Its landing page lists " *
-                        string(length(client.conformsTo)) * " classes."))
+@noinline _noconformance(client::Client, class::AbstractString, argument::AbstractString) =
+    throw(NoConformance(client.url, String(class), String(argument), length(client.conformsTo)))
 
 """
     STAC.check_conformance(client; filter, query, sortby, fields)
@@ -540,7 +188,7 @@ costs no request.
 | Keyword | Takes |
 |---|---|
 | `collections`, `ids` | a string or a list of strings |
-| `intersects` | a GeoInterface geometry, an `Extents.Extent`, or a bbox of 4 or 6 numbers |
+| `intersects` | a GeoInterface geometry, an `Extents.Extent`, a bbox of 4 or 6 numbers, or a DE-9IM predicate wrapping any of those |
 | `datetime` | see [`STAC.normalize_datetime`](@ref) |
 | `query`, `filter`, `filter_lang`, `fields` | the extension bodies, passed through |
 | `sortby` | `"-datetime"`, `"+id"`, a list of those, or the spec's `{field, direction}` objects |
@@ -552,11 +200,20 @@ The request is checked against the endpoint's `conformsTo` before it is built, s
 an endpoint cannot answer raises here rather than 400ing later.
 
 ```julia
+client = Client("https://earth-search.aws.element84.com/v1")
+
+# a collection, an area, and a window
 s = search(client; collections = ["sentinel-2-l2a"],
            intersects = Extent(X = (-123, -122), Y = (37, 38)),
            datetime = (DateTime(2024, 6, 1), DateTime(2024, 6, 5)), limit = 100)
-matched(s)                       # the total, when the endpoint reports one
-first(Iterators.take(s, 5))      # one request, five items
+matched(s)                        # the total, on an endpoint that reports one
+
+# a geometry goes as `intersects`, in Float64 whatever precision it arrived in
+aoi = GeoJSON.read(read("aoi.geojson", String))
+search(client; intersects = aoi, datetime = Date(2024, 6, 1))
+
+# pages arrive as they are reached
+collect(Iterators.take(s, 5))     # five items, from one request of 100
 ```
 """
 function search(client::Client; collections = nothing, ids = nothing, intersects = nothing,
@@ -700,9 +357,15 @@ result is iterated.
 
 ```julia
 cat = STAC.read("catalog.json")
-s = search(cat; collections = ["simple-collection"],
-           intersects = Extent(X = (170, -170), Y = (60, 70)))
-matched(s)                       # exact: the filtered set is in memory
+
+# the walk runs on the first item asked for, and a box across the antimeridian is one box
+s = search(cat; collections = "edges", intersects = Extent(X = (170, -170), Y = (60, 70)))
+matched(s)                        # exact: the filtered set is in memory
+first(s).id
+
+# a DE-9IM predicate keeps only the items it holds for, evaluated on the sphere
+aoi = GeoJSON.read(read("aoi.geojson", String); numbertype = Float64)
+collect(search(cat; intersects = Within(aoi), datetime = Date(2024, 6, 4)))
 ```
 """
 function search(obj::Union{Catalog,Collection}, opts::ParseOptions; collections = nothing,

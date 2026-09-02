@@ -16,8 +16,7 @@ newslots(n::Int) = Slots(undef, n)
 
 # `applyeach` dispatches on the runtime JSON type, so the array (integer key) path of every
 # sink is reachable; one resolvable method each leaves the trim verifier nothing to chase.
-@noinline _notobject(::Type{T}) where {T} =
-    throw(ArgumentError("expected a JSON object for " * string(T)))
+@noinline _notobject(::Type{T}) where {T} = throw(WrongJSONType(:object, string(T)))
 
 newtail(::Type{Metadata}) = JSON.Object{String,Any}()
 newtail(::Type{NoMetadata}) = NoMetadata()
@@ -93,7 +92,7 @@ end
 end
 
 @noinline _missingfield(::Type{T}, i) where {T} =
-    throw(ArgumentError(string("missing required field ", fieldname(T, i), " for ", T)))
+    throw(MissingField(string(T), fieldname(T, i)))
 
 @inline function getval(vals, ::Type{T}, i, ::Type{FT}) where {T,FT}
     if isassigned(vals, i)
@@ -171,7 +170,7 @@ end
 # is one method for every element type, so a nested parse reaches it twice and the trim
 # verifier reports the inner pass as an unresolved invoke.
 
-@noinline _notarray(::Type{T}) where {T} = throw(ArgumentError("expected a JSON array for " * string(T)))
+@noinline _notarray(::Type{T}) where {T} = throw(WrongJSONType(:array, string(T)))
 
 struct VectorSink{V,T,S}
     vec::V
@@ -393,11 +392,11 @@ function (f::GeomTypeSink)(k, v)
     return StructUtils.EarlyReturn(s)
 end
 
-@noinline _notageometry() = throw(ArgumentError("geometry object has no \"type\" key"))
+@noinline _notageometry(::Type{U}) where {U} = throw(UnknownGeometryType(nothing, string(U)))
 
-function geometrytypename(style, src)
+function geometrytypename(style, ::Type{U}, src) where {U}
     ret = StructUtils.applyeach(style, GeomTypeSink(style), src)
-    ret isa StructUtils.EarlyReturn || _notageometry()
+    ret isa StructUtils.EarlyReturn || _notageometry(U)
     return ret.value::String
 end
 
@@ -406,7 +405,7 @@ end
     for C in Base.uniontypes(U)
         push!(ex.args, :(t == $(String(nameof(C))) && return StructUtils.make(style, $C, src)))
     end
-    push!(ex.args, :(throw(ArgumentError("geometry type " * t * " is not in " * $(string(U))))))
+    push!(ex.args, :(throw(UnknownGeometryType(t, $(string(U))))))
     return ex
 end
 
@@ -415,7 +414,7 @@ end
 function StructUtils.make(style::StructUtils.StructStyle, ::Type{U},
                           src::JSON.LazyValue) where {U<:GeoJSON.AbstractGeometry}
     isconcretetype(U) && return @invoke StructUtils.make(style::StructUtils.StructStyle, U::Type{U}, src::Any)
-    return makegeometry(style, U, src, geometrytypename(style, src))
+    return makegeometry(style, U, src, geometrytypename(style, U, src))
 end
 
 StructUtils.make(style::StructUtils.StructStyle, ::Type{U}, src::JSON.LazyValue, tags) where {U<:GeoJSON.AbstractGeometry} =
@@ -437,7 +436,7 @@ mutable struct BBoxAcc
     BBoxAcc() = new(0, 0, 0, 0, 0, 0, 0)
 end
 
-@noinline _badbbox(n) = throw(ArgumentError("bbox must have 4 or 6 numbers, got " * string(n)))
+@noinline _badbbox(n) = throw(BadBBox(n))
 
 struct BBoxSink{S}
     acc::BBoxAcc

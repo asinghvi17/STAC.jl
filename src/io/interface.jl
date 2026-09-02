@@ -30,7 +30,7 @@ const RequestHeaders = Vector{Pair{String,String}}
 const NO_HEADERS = RequestHeaders()
 
 @noinline _nomethod(io, method) =
-    throw(ArgumentError(string(nameof(typeof(io)), " answers GET only, not ", method)))
+    throw(MethodUnsupported(string(nameof(typeof(io))), String(method)))
 
 """
     STAC.request(io, method, href; headers = STAC.NO_HEADERS, body = nothing) -> Vector{UInt8}

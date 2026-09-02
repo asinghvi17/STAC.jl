@@ -4,6 +4,11 @@
 The local-filesystem [`AbstractIO`](@ref STAC.AbstractIO). `read` is `Base.read` on the path
 the href names; a `file://` href is accepted and reduced to its path first, so a catalog
 published with `file` URLs traverses without a separate route.
+
+```julia
+STAC.parse(STAC.read(PathIO(), "test/fixtures/stac-spec/catalog.json")).id   # "examples"
+STAC.read("test/fixtures/stac-spec/catalog.json"; io = PathIO())             # the same, typed
+```
 """
 struct PathIO <: AbstractIO end
 

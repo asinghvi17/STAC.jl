@@ -83,7 +83,7 @@ end
     @test get(item, View).off_nadir isa Float64                       # from the tail
     @test View(item).off_nadir == 3.8
     @test get(item, Sat) === nothing
-    @test_throws ArgumentError Sat(item)
+    @test_throws STAC.MissingExtension("Sat", "sat", "Item") Sat(item)
 end
 
 @testset "asset-level and collection-level keys read from their own tails" begin
@@ -149,4 +149,26 @@ end
                      extensions = (), geometry = GeoJSON.AbstractGeometry)
     @test item.geometry isa GeoJSON.Polygon{2,Float64}
     @test STAC.parse(STAC.json(item), opts).id == item.id
+end
+
+@testset "extensions compare and hash by their fields" begin
+    @test EO(1.2, 0.0) == EO(1.2, 0.0)
+    @test EO(1.2, 0.0) != EO(1.2, nothing)
+    @test hash(EO(1.2, 0.0)) == hash(EO(1.2, 0.0))
+    @test Dict(EO(1.2, 0.0) => :one)[EO(1.2, 0.0)] === :one
+
+    # Two extensions of different types are unequal: the diagonal rule keeps the
+    # field-by-field method to one concrete type, so a mixed pair lands on Base's `===`.
+    @test EO(1.2, 0.0) != Sat(nothing, nothing, nothing, nothing, nothing, nothing)
+    @test which(==, Tuple{EO,Sat}).sig === Tuple{typeof(==),Any,Any}
+
+    # A vector field holds equal but distinct arrays across two parses.
+    a = Projection("EPSG:32659", nothing, nothing, nothing, [8391, 8342], nothing)
+    b = Projection("EPSG:32659", nothing, nothing, nothing, [8391, 8342], nothing)
+    @test a !== b && a == b && isequal(a, b) && hash(a) == hash(b)
+
+    # `==` and `isequal` part ways on `NaN`, exactly as they do on the number itself.
+    @test EO(NaN, nothing) != EO(NaN, nothing)
+    @test isequal(EO(NaN, nothing), EO(NaN, nothing))
+    @test hash(EO(NaN, nothing)) == hash(EO(NaN, nothing))
 end

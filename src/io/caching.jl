@@ -8,6 +8,14 @@ object it visits, so the cache is what keeps that from being one request each.
 
 `request` passes straight through: a search POST is not addressed by its href alone, and a
 `next` link is meant to be fetched exactly once.
+
+```julia
+io = CachingIO(PathIO(); maxsize = 32)
+cat = STAC.read("test/fixtures/static/self-contained/catalog.json"; io)
+collect(items(cat; recursive = true, io))   # one fetch per document, however often reached
+length(io.cache)                            # 7: the catalog, two children, four items
+empty!(io)                                  # back to the inner IO for every href
+```
 """
 struct CachingIO{I<:AbstractIO} <: AbstractIO
     inner::I

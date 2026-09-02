@@ -1,4 +1,4 @@
-using STAC, Test, Extents, DE9IM
+using STAC, Test, Extents, DE9IM, GeoJSON
 using STAC: SpatialIndex, query, spatialindex
 import GeoInterface as GI
 import GeometryOps as GO
@@ -15,6 +15,8 @@ hits(idx, input) = [idx.items[i].id for i in query(idx, input)]
 # only reaches into.
 const REGION =
     GI.Polygon([GI.LinearRing([(-2.0, -2.0), (2.0, -2.0), (2.0, 2.0), (-2.0, 2.0), (-2.0, -2.0)])])
+
+const REGION_JSON = GeoJSON.write(REGION)
 
 @testset "the spherical index answers across the antimeridian, the planar one does not" begin
     its = catalogitems()
@@ -59,7 +61,22 @@ end
     # An item that locates itself nowhere is in no answer at all.
     @test !("unlocated" in hits(idx, Disjoint(REGION)))
 
-    @test_throws ArgumentError query(idx, Within())
+    @test_throws STAC.EmptyPredicate("Within") query(idx, Within())
+end
+
+@testset "a Float32 query geometry is lifted to Float64 before the spherical pass" begin
+    its = catalogitems()
+    idx = spatialindex(its)
+
+    # GeoJSON.jl reads positions as Float32 unless told otherwise, and every spherical pass
+    # runs on ExactPredicates, which takes Float64 alone.
+    region32 = GeoJSON.read(REGION_JSON)
+    region64 = GeoJSON.read(REGION_JSON; numbertype = Float64)
+    @test region32 isa GeoJSON.Polygon{2,Float32}
+
+    @test hits(idx, region32) == hits(idx, region64)
+    @test hits(idx, Within(region32)) == hits(idx, Within(region64)) == ["greenwich"]
+    @test hits(idx, Disjoint(region32)) == hits(idx, Disjoint(region64))
 end
 
 @testset "the planar and spherical exact passes agree away from the edges" begin

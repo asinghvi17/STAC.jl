@@ -14,6 +14,9 @@ link(href) = Link(href, "child", nothing, nothing, nothing, nothing, nothing, no
     @test urischeme("catalog.json") == ""
     # A single letter before the colon is a Windows drive, not a one-character scheme.
     @test urischeme("C:/data/catalog.json") == ""
+    # A raw space makes the href no URI reference at all, which is to say a local path.
+    @test urischeme("/my catalogs/catalog.json") == ""
+    @test resolve("item.json", "/my catalogs/catalog.json") == "/my catalogs/item.json"
 end
 
 @testset "an absolute href is one that can be fetched on its own" begin
@@ -70,7 +73,7 @@ end
 end
 
 @testset "a relative href with no base says so" begin
-    @test_throws ArgumentError resolve("./item.json", nothing)
+    @test_throws STAC.NoOrigin("./item.json") resolve("./item.json", nothing)
 end
 
 @testset "a file URL reduces to its path" begin

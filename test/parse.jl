@@ -86,8 +86,8 @@ end
 end
 
 @testset "a document with no usable `type` is rejected" begin
-    @test_throws ArgumentError STAC.parse("{\"id\": \"x\"}")
-    @test_throws ArgumentError STAC.parse("{\"type\": \"Point\"}")
+    @test_throws STAC.NotSTACDocument(nothing) STAC.parse("{\"id\": \"x\"}")
+    @test_throws STAC.NotSTACDocument("Point") STAC.parse("{\"type\": \"Point\"}")
 end
 
 @testset "RFC 3339 parsing covers the forms the spec allows" begin
@@ -98,8 +98,8 @@ end
           DateTime(2024, 6, 12, 18, 59, 21, 123)
     @test STAC.parse_rfc3339("2024-06-12T18:59:21-03:30") == DateTime(2024, 6, 12, 22, 29, 21)
     @test STAC.parse_rfc3339("2024-06-12") == DateTime(2024, 6, 12)
-    @test_throws ArgumentError STAC.parse_rfc3339("2024-06-12T18:59:21+0000")
-    @test_throws ArgumentError STAC.parse_rfc3339("yesterday")
+    @test_throws STAC.BadDateTime STAC.parse_rfc3339("2024-06-12T18:59:21+0000")
+    @test_throws STAC.BadDateTime("yesterday") STAC.parse_rfc3339("yesterday")
 end
 
 @testset "format_rfc3339 writes what parse_rfc3339 reads" begin

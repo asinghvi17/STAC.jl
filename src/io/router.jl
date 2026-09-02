@@ -8,6 +8,14 @@ meaning a local path. Routing per href rather than per catalog is what lets a ca
 
 The routes are a tuple, so each `read` resolves to one child's method at compile time, which
 is what `--trim=safe` needs.
+
+```julia
+io = StreamRouterIO("https" => HTTPIO(), "" => PathIO())
+STAC.read("test/fixtures/stac-spec/catalog.json"; io)      # the "" route
+STAC.read("https://stac.itslive.cloud/"; io)               # the "https" one
+```
+
+An href whose scheme no route matches raises a [`STAC.NoRoute`](@ref) naming it.
 """
 struct StreamRouterIO{T<:Tuple} <: AbstractIO
     routes::T
@@ -15,9 +23,7 @@ end
 
 StreamRouterIO(routes::Pair...) = StreamRouterIO(routes)
 
-@noinline _noroute(scheme, href) =
-    throw(ArgumentError("no route for scheme " * repr(String(scheme)) * " (" * String(href) *
-                        "). Build a `StreamRouterIO` with one, or load the bridge that adds it."))
+@noinline _noroute(scheme, href) = throw(NoRoute(String(scheme), String(href)))
 
 # One unrolled comparison per route: every branch calls a concrete child's method, so the
 # whole fetch path stays statically dispatched.

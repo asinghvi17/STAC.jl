@@ -27,6 +27,36 @@ end
     @test collect(n) == Any[]
 end
 
+@testset "both tails are AbstractDicts" begin
+    @test Metadata <: STAC.AnyMetadata <: AbstractDict{String,Any}
+    @test NoMetadata <: STAC.AnyMetadata
+
+    m = Metadata(JSON.Object{String,Any}("b" => 1, "a" => 2))
+    @test eltype(m) == Pair{String,Any}
+    @test collect(pairs(m)) == ["b" => 1, "a" => 2]
+    @test collect(values(m)) == [1, 2]
+    @test Dict(m) == Dict("a" => 2, "b" => 1)
+    @test m == Dict("a" => 2, "b" => 1)         # AbstractDict equality: order-free
+    @test hash(m) == hash(Dict("a" => 2, "b" => 1))
+    @test merge(m, Dict("c" => 3)) == Dict("a" => 2, "b" => 1, "c" => 3)
+    @test_throws KeyError m["c"]
+
+    n = NoMetadata()
+    @test collect(pairs(n)) == Pair{String,Any}[]
+    @test Dict(n) == Dict{String,Any}()
+    @test n == Metadata()
+    @test_throws KeyError n["a"]
+
+    # An empty tail costs nothing to carry, which is the point of parsing without one.
+    @test Base.issingletontype(NoMetadata)
+    @test sizeof(NoMetadata) == 0
+
+    # Both print their key names, which is what `AbstractDict`'s own `show` would replace.
+    @test repr(m) == "Metadata(\"b\", \"a\")"
+    @test repr(MIME"text/plain"(), m) == "Metadata(\"b\", \"a\")"
+    @test repr(n) == repr(MIME"text/plain"(), n) == "NoMetadata()"
+end
+
 @testset "objects compare field by field" begin
     a = Link("h", "self", nothing, nothing, nothing, nothing, nothing, nothing, Metadata())
     b = Link("h", "self", nothing, nothing, nothing, nothing, nothing, nothing, Metadata())
@@ -36,6 +66,32 @@ end
     # Vectors of equal contents are distinct objects, which `===` would reject.
     @test Asset("h", nothing, nothing, nothing, ["data"], nothing, Metadata()) ==
           Asset("h", nothing, nothing, nothing, ["data"], nothing, Metadata())
+
+    # Two objects of the same name and different parameters are unequal, not an error.
+    kept = STAC.read(joinpath(SPEC_DIR, "catalog.json"))
+    dropped = STAC.read(joinpath(SPEC_DIR, "catalog.json"); metadata = false)
+    @test typeof(kept) != typeof(dropped)
+    @test kept != dropped
+end
+
+@testset "equal objects hash alike" begin
+    a = STAC.read(joinpath(SPEC_DIR, "extended-item.json"))
+    b = STAC.read(joinpath(SPEC_DIR, "extended-item.json"))
+    @test a !== b
+    @test isequal(a, b)
+    @test hash(a) == hash(b)
+    @test Dict(a => "one")[b] == "one"          # usable as a Dict key
+    @test length(unique([a, b])) == 1
+
+    other = STAC.read(joinpath(SPEC_DIR, "simple-item.json"))
+    @test a != other
+    @test hash(a) != hash(other)
+
+    # `==` keeps `Float64` semantics on a `NaN` bbox, and `isequal` keeps its own.
+    nan = SpatialExtent([[NaN, 0.0, 1.0, 1.0]], Metadata())
+    @test nan != SpatialExtent([[NaN, 0.0, 1.0, 1.0]], Metadata())
+    @test isequal(nan, SpatialExtent([[NaN, 0.0, 1.0, 1.0]], Metadata()))
+    @test hash(nan) == hash(SpatialExtent([[NaN, 0.0, 1.0, 1.0]], Metadata()))
 end
 
 @testset "sethref rebuilds only the outer struct" begin

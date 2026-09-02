@@ -27,6 +27,13 @@ and href rewriting; every request carries a `STAC.jl/<version>` `User-Agent`.
 `client` defaults to `nothing` because [`STAC.DEFAULT_IO`](@ref) is built when the module
 loads: a live connection pool cannot go into a precompile cache, and HTTP.jl's implicit
 client already pools.
+
+```julia
+STAC.read("https://stac.itslive.cloud/"; io = HTTPIO()).id      # "stac-fastapi"
+
+# A slow endpoint behind a token, given more attempts and a longer ceiling.
+HTTPIO(BearerToken("s3cret"); retries = 5, request_timeout = 600)
+```
 """
 struct HTTPIO{A<:AbstractAuth} <: AbstractIO
     auth::A

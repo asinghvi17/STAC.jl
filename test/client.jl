@@ -128,9 +128,10 @@ end
     catch e
         e
     end
-    @test err isa ArgumentError
-    @test occursin("item-search", err.msg)
+    @test err isa STAC.NoConformance
+    @test err.class == "item-search"
+    @test occursin("item-search", sprint(showerror, err))
 
     # No `data` link either, so the collection calls name the link they wanted.
-    @test_throws ArgumentError collections(client)
+    @test_throws STAC.MissingLink collections(client)
 end

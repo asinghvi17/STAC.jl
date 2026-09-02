@@ -172,8 +172,10 @@ end
         catch e
             e
         end
-        @test err isa ArgumentError
-        @test occursin("item-search#filter", err.msg)
+        @test err isa STAC.NoConformance
+        @test err.class == "item-search#filter"
+        @test err.argument == "`filter =`"
+        @test occursin("item-search#filter", sprint(showerror, err))
     end
 
     cdse, _, _ = recordedsearch("cdse")
@@ -194,7 +196,7 @@ end
     @test normalize_datetime((Date(2024, 1, 1), Date(2024, 1, 2))) ==
           "2024-01-01T00:00:00Z/2024-01-02T23:59:59.999Z"
     @test normalize_datetime([DateTime(2024, 6, 1), DateTime(2024, 6, 5)]) == WINDOW_STRING
-    @test_throws ArgumentError normalize_datetime([DateTime(2024, 6, 1)])
+    @test_throws STAC.BadInterval(1) normalize_datetime([DateTime(2024, 6, 1)])
 end
 
 @testset "a spatial argument becomes bbox or intersects by its type" begin
@@ -205,13 +207,27 @@ end
           (:bbox, [-123.0, 37.0, 0.0, -122.0, 38.0, 10.0])
     @test classify((-123, 37, -122, 38)) == (:bbox, [-123.0, 37.0, -122.0, 38.0])
 
+    # GeoJSON.jl reads positions as Float32 unless told otherwise, and -122.4194 widened from
+    # Float32 is -122.41940307617188, a request for a different place.
     poly = GeoJSON.read("""{"type":"Polygon","coordinates":
-        [[[-123.0,37.0],[-122.0,37.0],[-122.0,38.0],[-123.0,37.0]]]}""")
+        [[[-122.4194,37.7749],[-122.0,37.0],[-122.0,38.0],[-122.4194,37.7749]]]}""")
+    @test poly isa GeoJSON.Polygon{2,Float32}
     kind, geom = classify(poly)
     @test kind === :intersects
-    @test geom["type"] == "Polygon"
-    @test geom["coordinates"][1][1] == [-123.0, 37.0]
-    @test_throws ArgumentError classify("POLYGON((0 0))")
+    @test geom isa GeoJSON.Polygon{2,Float64}
+    @test JSON.parse(STAC.json(geom))["coordinates"][1][1] == [-122.4194, 37.7749]
+    @test_throws STAC.NotAGeometry("String") classify("POLYGON((0 0))")
+
+    # A Z coordinate travels with the position.
+    pt3 = GeoJSON.read("""{"type":"Point","coordinates":[-123.0,37.0,10.0]}"""; ndim = 3)
+    @test JSON.parse(STAC.json(classify(pt3)[2]))["coordinates"] == [-123.0, 37.0, 10.0]
+
+    # A GeometryCollection travels whole, its members with it.
+    gc = GeoJSON.read("""{"type":"GeometryCollection","geometries":
+        [{"type":"Point","coordinates":[-123.0,37.0]}]}""")
+    written = JSON.parse(STAC.json(classify(gc)[2]))
+    @test written["type"] == "GeometryCollection"
+    @test written["geometries"][1]["coordinates"] == [-123.0, 37.0]
 
     client, _, _ = recordedsearch("planetary-computer")
     @test haskey(search(client; intersects = Extent(X = (-1, 1), Y = (-1, 1))).body, "bbox")

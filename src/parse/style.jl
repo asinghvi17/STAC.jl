@@ -11,7 +11,7 @@ JSON.jl. It contributes two things to StructUtils' machinery:
 """
 struct STACStyle <: JSON.JSONStyle end
 
-@noinline _badrfc3339(s) = throw(ArgumentError("invalid RFC 3339 date-time: " * String(s)))
+@noinline _badrfc3339(s) = throw(BadDateTime(String(s)))
 
 @inline function _fixeddigits(b, i, w, s)
     v = 0

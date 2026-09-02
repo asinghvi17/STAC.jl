@@ -12,6 +12,19 @@ anonymous for the buckets its assets live in:
 
 `rewrite` defaults to the identity, so an auth that only adds headers implements `headers`
 alone.
+
+```julia
+struct QueryToken <: STAC.AbstractAuth
+    token::String
+end
+STAC.headers(::QueryToken, ::AbstractString) = STAC.NO_HEADERS
+STAC.rewrite(a::QueryToken, href::AbstractString) = href * "?token=" * a.token
+
+STAC.rewrite(QueryToken("abc"), "https://example.com/catalog.json")
+# "https://example.com/catalog.json?token=abc"
+
+HTTPIO(QueryToken("abc"))       # the transport that signs every href
+```
 """
 abstract type AbstractAuth end
 
@@ -35,6 +48,10 @@ rewrite(::AbstractAuth, href::AbstractString) = String(href)
 
 Anonymous access: no headers, no rewriting. The default of every stack
 [`STAC.default_io`](@ref) builds.
+
+```julia
+STAC.headers(NoAuth(), "https://example.com")   # Pair{String,String}[]
+```
 """
 struct NoAuth <: AbstractAuth end
 
@@ -43,8 +60,15 @@ headers(::NoAuth, ::AbstractString) = NO_HEADERS
 """
     BearerToken(token)
 
-`Authorization: Bearer <token>` on every request. Use [`STAC.Headers`](@ref) instead when the
-endpoint wants a differently named header.
+`Authorization: Bearer <token>` on every request. [`STAC.Headers`](@ref) covers an endpoint
+that wants a differently named header.
+
+```julia
+STAC.headers(BearerToken("s3cret"), "https://example.com")
+# ["Authorization" => "Bearer s3cret"]
+```
+
+A [`Client`](@ref) takes one through `auth =`, and every later call carries it.
 """
 struct BearerToken <: AbstractAuth
     token::String
@@ -58,6 +82,12 @@ headers(a::BearerToken, ::AbstractString) = RequestHeaders(["Authorization" => "
 
 A fixed header list added to every request, for the endpoints whose credential is neither a
 bearer token nor a signed URL.
+
+```julia
+auth = STAC.Headers("X-Api-Key" => "k", "X-Tenant" => "acme")
+STAC.headers(auth, "https://example.com")   # ["X-Api-Key" => "k", "X-Tenant" => "acme"]
+HTTPIO(auth)                                # the transport that sends them
+```
 """
 struct Headers <: AbstractAuth
     headers::RequestHeaders

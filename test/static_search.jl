@@ -1,4 +1,4 @@
-using STAC, Test, Extents, Dates, DE9IM
+using STAC, Test, Extents, Dates, DE9IM, GeoJSON
 using STAC: Item, ItemCollection, ParseOptions, StaticItemSearch, datetime_interval,
             intimerange, itemtype
 import GeoInterface as GI
@@ -39,6 +39,20 @@ const REGION =
     @test isempty(collect(search(cat; ids = "nobody")))
 end
 
+@testset "a geometry read as Float32 searches the same place as one read as Float64" begin
+    cat = catalog()
+
+    # GeoJSON.jl reads positions as Float32 unless told otherwise, and the spherical pass a
+    # static search runs takes Float64 alone.
+    region32 = GeoJSON.read(GeoJSON.write(REGION))
+    @test region32 isa GeoJSON.Polygon{2,Float32}
+
+    @test ids(search(cat; intersects = Within(region32))) == ["greenwich"]
+    @test ids(search(cat; intersects = region32)) == ["greenwich", "outside-corner"]
+    @test ids(search(cat; intersects = Disjoint(region32))) ==
+          ids(search(cat; intersects = Disjoint(REGION)))
+end
+
 @testset "an open-sided window keeps everything on the open side" begin
     cat = catalog()
 
@@ -57,7 +71,7 @@ end
           (DateTime(2024, 1, 1), DateTime(2024, 1, 2, 23, 59, 59, 999))
     @test datetime_interval("../2024-01-02T06:00:00Z") == (nothing, DateTime(2024, 1, 2, 6))
     @test datetime_interval([DateTime(2024, 6, 1), DateTime(2024, 6, 5)]) == WINDOW
-    @test_throws ArgumentError datetime_interval([DateTime(2024, 6, 1)])
+    @test_throws STAC.BadInterval(1) datetime_interval([DateTime(2024, 6, 1)])
 end
 
 @testset "an item with only a start and an end matches an overlapping window" begin

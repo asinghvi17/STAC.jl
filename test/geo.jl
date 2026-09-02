@@ -58,6 +58,10 @@ end
 
     @test GI.extent(byid(its, "greenwich")) == Extents.extent(byid(its, "greenwich"))
     @test Extents.extent(its) == reduce(Extents.union, filter(!isnothing, Extents.extent.(its)))
+
+    # A page locating nothing has no extent, and neither does an empty one.
+    @test Extents.extent([byid(its, "unlocated")]) === nothing
+    @test Extents.extent(ItemCollection(empty(its))) === nothing
 end
 
 @testset "a longitude/latitude box lifts to the 3D box that covers it" begin
@@ -110,8 +114,8 @@ end
     cap = GO.UnitSpherical.SphericalCap(point, 0.1)
     @test lift(GO.Spherical(), cap) === cap
 
-    @test_throws ArgumentError lift(GO.Spherical(), "POLYGON((0 0))")
-    @test_throws ArgumentError lift(GO.Spherical(), (1, 2, 3))
+    @test_throws STAC.NotQueryable("String") lift(GO.Spherical(), "POLYGON((0 0))")
+    @test_throws STAC.BadBBox(3) lift(GO.Spherical(), (1, 2, 3))
 end
 
 @testset "an item's leaf box comes from its bbox, then from its geometry" begin
@@ -129,6 +133,11 @@ end
     @test Extents.extent(nobbox) == Extent(X = (-1.0, 1.0), Y = (-1.0, 1.0))
     @test leaf_extent(GO.Planar(), nobbox) == Extent(X = (-1.0, 1.0), Y = (-1.0, 1.0))
     @test leaf_extent(GO.Spherical(), nobbox) == spherebox(-1, -1, 1, 1)
+
+    # The trim-safe vertex walk the leaves are built with names the rectangle `GI.extent`
+    # names, so the two paths a geometry can take through this file agree.
+    @test all(i -> STAC.pointextent(i.geometry) == GI.extent(i.geometry),
+              filter(i -> i.geometry !== nothing, its))
 
     # One box type per manifold, so a tree's leaves never mix key sets.
     @test all(i -> leaf_extent(GO.Planar(), i) isa Union{Nothing,STAC.XYExtent}, its)

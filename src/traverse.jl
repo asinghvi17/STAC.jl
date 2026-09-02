@@ -2,7 +2,7 @@
 # resolved against the owner's origin and fetched one at a time.
 
 @noinline _wrongdoc(::Type{T}, obj) where {T} =
-    throw(ArgumentError("expected a " * string(T) * ", got a " * string(nameof(typeof(obj)))))
+    throw(WrongDocumentType(string(T), string(nameof(typeof(obj)))))
 
 """
     STAC.readdoc(T, bytes, opts) -> T
@@ -82,6 +82,12 @@ own `type` key.
 
 The keywords are [`ParseOptions`](@ref)'s, plus `io`, the [`AbstractIO`](@ref STAC.AbstractIO)
 that fetches.
+
+```julia
+cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
+length(children(cat))               # 2, from the link count, before any request
+[c.id for c in children(cat)]       # ["simple-collection", "empty-collection"]
+```
 """
 children(obj::STACObject, opts::ParseOptions; io::AbstractIO = default_io()) =
     LinkIterator{childtype(opts)}(rellinks(obj, "child"), obj.href, io, opts)
@@ -102,6 +108,13 @@ The [`Item`](@ref)s of a catalog or collection, as a lazy iterator.
 
 The recursive form fetches one document per object it reaches and no more, so a walk of a
 rate-limited catalog costs exactly as many requests as it visits documents.
+
+```julia
+cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
+[i.id for i in items(cat)]                          # ["collectionless-item"]
+length(collect(items(cat; recursive = true)))       # 4, the descendants' as well
+first(items(cat; recursive = true)).properties.datetime
+```
 """
 function items(obj::STACObject, opts::ParseOptions; io::AbstractIO = default_io(),
                recursive::Bool = false)
@@ -180,6 +193,12 @@ end
     parent(obj; io = STAC.default_io(), extensions, geometry, metadata)
 
 The catalog or collection `obj`'s `parent` link points at, or `nothing` when it has none.
+
+```julia
+col = STAC.read("test/fixtures/static/self-contained/simple-collection/collection.json")
+parent(col).id                      # "examples", the catalog above it
+parent(parent(col)) === nothing     # true: the root has no parent
+```
 """
 Base.parent(obj::STACObject, opts::ParseOptions; io::AbstractIO = default_io()) =
     _firstlink(obj, "parent", io, opts)
@@ -192,6 +211,11 @@ Base.parent(obj::STACObject; io::AbstractIO = default_io(), kw...) =
     STAC.root(obj; io = STAC.default_io(), extensions, geometry, metadata)
 
 The catalog or collection `obj`'s `root` link points at, or `nothing` when it has none.
+
+```julia
+col = STAC.read("test/fixtures/static/self-contained/simple-collection/collection.json")
+STAC.root(col).id                   # "examples", however deep `col` sits
+```
 """
 root(obj::STACObject, opts::ParseOptions; io::AbstractIO = default_io()) =
     _firstlink(obj, "root", io, opts)

@@ -173,11 +173,13 @@ Base.size(rows::ItemRows) = (length(rows.items),)
 Base.IndexStyle(::Type{<:ItemRows}) = IndexLinear()
 Base.getindex(rows::ItemRows, i::Int) = ItemRow(rows.items[i], rows.columns)
 
+@noinline _nocolumn(name) = throw(MissingColumn(name))
+
 Tables.getcolumn(row::ItemRow, i::Int) = getfield(row, :columns).columns[i].read(getfield(row, :item))
 
 function Tables.getcolumn(row::ItemRow, name::Symbol)
     i = get(getfield(row, :columns).lookup, name, 0)
-    i == 0 && throw(ArgumentError("no column named " * repr(name) * " in this item table"))
+    i == 0 && _nocolumn(name)
     return Tables.getcolumn(row, i)
 end
 

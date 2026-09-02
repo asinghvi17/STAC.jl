@@ -14,7 +14,7 @@ const ITEMS = PAGE.features
     @test Tables.getcolumn(first(rows), :id) == first(ITEMS).id
     @test Tables.getcolumn(first(rows), 1) == first(ITEMS).id
     @test :datetime in Tables.columnnames(first(rows))
-    @test_throws ArgumentError Tables.getcolumn(first(rows), :nosuchcolumn)
+    @test_throws STAC.MissingColumn(:nosuchcolumn) Tables.getcolumn(first(rows), :nosuchcolumn)
 end
 
 @testset "the schema is the stac-geoparquet column layout" begin

@@ -1,8 +1,9 @@
-@noinline _notstac(t) =
-    throw(ArgumentError("not a STAC document: `type` is " * repr(t) *
-                        ", expected \"Feature\", \"FeatureCollection\", \"Catalog\", or \"Collection\""))
+# The document layer: the `type` key choosing which struct to build, and the origin stamped
+# onto what comes back.
 
-@noinline _notyped() = throw(ArgumentError("not a STAC document: no `type` key"))
+@noinline _notstac(t) = throw(NotSTACDocument(String(t)))
+
+@noinline _notyped() = throw(NotSTACDocument(nothing))
 
 struct DocTypeSink{S}
     style::S
@@ -87,7 +88,12 @@ The document's `type` key selects the struct; the keywords are [`ParseOptions`](
 
 ```julia
 item = STAC.read("test/fixtures/stac-spec/extended-item.json")
-item.extensions.eo.cloud_cover      # Float64
+item.id                             # "20201211_223832_CS2"
+item.extensions.eo.cloud_cover      # 1.2
+item.properties.datetime            # DateTime("2020-12-14T18:02:31.437")
+
+cat = STAC.read("test/fixtures/static/self-contained/catalog.json")
+[c.id for c in children(cat)]       # ["simple-collection", "empty-collection"]
 ```
 """
 function read(href::AbstractString; io::AbstractIO = default_io(), kw...)

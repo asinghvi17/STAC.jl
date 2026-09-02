@@ -20,13 +20,11 @@ read; see [`STAC.extensiontype`](@ref).
 abstract type Extension end
 
 # Field-by-field comparison, as for the object types: extension structs hold vectors, which
-# Base's `===` fallback for immutable structs reports as unequal across two parses.
-function Base.:(==)(a::T, b::T) where {T<:Extension}
-    for i in 1:fieldcount(T)
-        isequal(getfield(a, i), getfield(b, i)) || return false
-    end
-    return true
-end
+# Base's `===` fallback for immutable structs reports as unequal across two parses. The
+# diagonal rule restricts `T` to concrete types, so `EO() == Sat()` falls through to `===`.
+Base.:(==)(a::T, b::T) where {T<:Extension} = fieldsequal(a, b)
+Base.isequal(a::T, b::T) where {T<:Extension} = fieldsisequal(a, b)
+Base.hash(x::Extension, h::UInt) = fieldshash(x, h)
 
 """
     STAC.prefix(::Type{<:Extension}) -> String
@@ -65,7 +63,7 @@ extensiontype(exts::Tuple{Vararg{Type}}) =
 # Reaching an extension that was not parsed eagerly
 
 """
-    STAC.exttail(obj) -> Metadata | NoMetadata
+    STAC.exttail(obj) -> AnyMetadata
 
 Where `obj` keeps the extension keys no field of it names, which is where an extension with
 no eager slot is read from.
@@ -132,9 +130,11 @@ An item parsed with `metadata = false` kept no tail, so a lookup on one finds no
 keys were dropped at parse time rather than being absent from the document.
 
 ```julia
-item = STAC.read(path; extensions = (EO,))
-get(item, STAC.View)          # from the tail: `View` was not declared
-STAC.View(item).off_nadir     # the same value, or an error if there is none
+item = STAC.read("test/fixtures/stac-spec/extended-item.json"; extensions = (EO,))
+item.extensions.eo.cloud_cover    # 1.2, the eager field
+get(item, View)                   # View(3.8, …), read from the tail
+View(item).off_nadir              # 3.8, or a `STAC.MissingExtension` if there is none
+get(item, Sat) === nothing        # true: the item carries no `sat:` key
 ```
 """
 Base.get(item::Item{E}, ::Type{T}) where {E,T<:Extension} =
@@ -144,9 +144,7 @@ Base.get(obj::Union{Asset,Band,Catalog,Collection}, ::Type{T}) where {T<:Extensi
     fromtail(T, exttail(obj))
 
 @noinline _noextension(::Type{T}, obj) where {T} =
-    throw(ArgumentError("this " * string(nameof(typeof(obj))) * " carries no `" * prefix(T) *
-                        ":` keys, so it has no " * string(nameof(T)) *
-                        ". `get(obj, " * string(nameof(T)) * ")` reports that as `nothing`."))
+    throw(MissingExtension(string(nameof(T)), prefix(T), string(nameof(typeof(obj)))))
 
 function (::Type{T})(obj::Union{Item,Asset,Band,Catalog,Collection}) where {T<:Extension}
     ext = get(obj, T)
@@ -165,6 +163,13 @@ an item declaring `eo/v1.1.0` declares [`EO`](@ref) even though this package typ
 
 Declaring an extension and carrying its keys are different questions: `declares` reads the
 list, `get(obj, T)` reads the keys. Producers get both wrong in both directions.
+
+```julia
+item = STAC.read("test/fixtures/stac-spec/extended-item.json")
+STAC.declares(item, EO)                 # true, even though the item lists eo v2.0.0
+STAC.declares(item, STAC.schema(EO))    # the same question, asked by URI
+STAC.declares(item, Sat)                # false: `stac_extensions` never names it
+```
 """
 declares(obj, ::Type{T}) where {T<:Extension} = declares(obj, schema(T))
 
