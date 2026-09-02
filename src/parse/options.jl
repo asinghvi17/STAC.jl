@@ -1,9 +1,11 @@
 """
     STAC.DEFAULT_EXTENSIONS
 
-The extension structs parsed eagerly when a caller names none.
+The extension structs parsed eagerly when a caller names none: the six this package ships.
+An extension outside the set is not lost — its keys stay in `properties.other`, where
+`get(item, T)` still finds them.
 """
-const DEFAULT_EXTENSIONS = (EO, Projection)
+const DEFAULT_EXTENSIONS = (EO, Projection, Raster, Sat, View, Scientific)
 
 """
     STAC.DEFAULT_GEOMETRY
@@ -14,6 +16,27 @@ footprint is unknown.
 """
 const DEFAULT_GEOMETRY =
     Union{Nothing,GeoJSON.Polygon{2,Float64},GeoJSON.MultiPolygon{2,Float64}}
+
+"""
+    STAC.ANY_GEOMETRY
+
+Every GeoJSON geometry type, in `Float64` longitude/latitude, for a catalog whose items you
+have not seen: `geometry = STAC.ANY_GEOMETRY` accepts points and lines as well as the two
+[`STAC.DEFAULT_GEOMETRY`](@ref) allows.
+
+The wider the union, the more dispatch the parse does per item and the more code a
+`--trim=safe` program carries, which is why it is not the default.
+"""
+const ANY_GEOMETRY = Union{Nothing,GeoJSON.Point{2,Float64},GeoJSON.MultiPoint{2,Float64},
+                           GeoJSON.LineString{2,Float64},GeoJSON.MultiLineString{2,Float64},
+                           GeoJSON.Polygon{2,Float64},GeoJSON.MultiPolygon{2,Float64}}
+
+# `geometry = GeoJSON.AbstractGeometry` is the spelling the design gives the dynamic form;
+# it names the same set of concrete types as `ANY_GEOMETRY`, since a parse has to know which
+# struct to build.
+geometrytype(::Type{GeoJSON.AbstractGeometry}) = ANY_GEOMETRY
+geometrytype(::Type{Union{Nothing,GeoJSON.AbstractGeometry}}) = ANY_GEOMETRY
+geometrytype(::Type{G}) where {G} = G
 
 """
     STAC.STAC_VERSION
@@ -34,13 +57,13 @@ The three choices that fix the concrete types a parse produces, carried as type 
 | Keyword | Accepts | Becomes |
 |---|---|---|
 | `extensions` | a tuple of [`STAC.Extension`](@ref) structs; `()` for none | `E` |
-| `geometry` | a geometry type or a union of them | `G` |
+| `geometry` | a geometry type, a union of them, or `GeoJSON.AbstractGeometry` for [`STAC.ANY_GEOMETRY`](@ref) | `G` |
 | `metadata` | `true` to keep unnamed keys, `false` to skip them | `M` |
 """
 struct ParseOptions{E,G,M} end
 
 ParseOptions(; extensions = DEFAULT_EXTENSIONS, geometry = DEFAULT_GEOMETRY, metadata = true) =
-    ParseOptions{extensiontype(extensions),geometry,metadatatype(metadata)}()
+    ParseOptions{extensiontype(extensions),geometrytype(geometry),metadatatype(metadata)}()
 
 # Each of these takes the options either as a value or as their type, so a container
 # parametrised on `ParseOptions` (an item search) can name its element type from `O` alone.

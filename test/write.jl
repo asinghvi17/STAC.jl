@@ -58,7 +58,7 @@ end
 @testset "an in-memory object writes without a source document" begin
     link = STAC.Link("./child.json", "child", nothing, nothing, nothing, nothing,
                      nothing, nothing, STAC.Metadata())
-    cat = STAC.Catalog{STAC.NoMetadata}("root", "Root", "a catalog", [link],
+    cat = STAC.Catalog{STAC.NoMetadata}("root", nothing, "Root", "a catalog", [link],
                                         STAC.NoMetadata(), nothing)
     written = JSON.parse(STAC.json(cat))
     @test written["type"] == "Catalog"

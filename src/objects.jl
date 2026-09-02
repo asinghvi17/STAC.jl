@@ -132,6 +132,7 @@ absolute location the document was read from, and is `nothing` for catalogs buil
 """
 struct Catalog{M}
     id::String
+    stac_extensions::Union{Vector{String},Nothing}
     title::Union{String,Nothing}
     description::String
     links::Vector{Link}
@@ -147,6 +148,7 @@ what terms (`license`), and who made it (`providers`).
 """
 struct Collection{M}
     id::String
+    stac_extensions::Union{Vector{String},Nothing}
     title::Union{String,Nothing}
     description::String
     license::String
@@ -171,9 +173,15 @@ become the three parameters, so a vector of items has one element type.
 | `E` | `extensions` | a `NamedTuple` keyed by extension prefix, e.g. `@NamedTuple{eo::Union{EO,Nothing}, proj::Union{Projection,Nothing}}` |
 | `G` | `geometry` | the geometry types this catalog can produce, e.g. `Union{Nothing, GeoJSON.Polygon{2,Float64}, GeoJSON.MultiPolygon{2,Float64}}` |
 | `M` | `metadata` | [`Metadata`](@ref) or [`NoMetadata`](@ref), for both the item's own tail and `properties.other` |
+
+`stac_extensions` is the list of schema URIs the producer declared, which is what
+[`STAC.declares`](@ref) answers from. It has a field of its own rather than a place in the
+metadata tail so that `metadata = false` neither loses it on a write nor makes `declares`
+report an extension the document does declare as absent.
 """
 struct Item{E,G,M}
     id::String
+    stac_extensions::Union{Vector{String},Nothing}
     geometry::G
     bbox::Union{Nothing,NTuple{4,Float64},NTuple{6,Float64}}
     properties::Properties{M}

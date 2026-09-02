@@ -55,6 +55,17 @@ An extension is a struct plus `prefix` and `schema`. Field names are the JSON ke
 prefix, so `eo:cloud_cover` is `EO.cloud_cover`. A deprecated key with a typed replacement,
 such as `proj:epsg` beside `proj:code`, is an ordinary field so both are read.
 
+Three rules follow from the access paths in `src/extensions/interface.jl`:
+
+1. **Every field is `Union{…,Nothing}`.** `fromtail` builds the struct from whichever keys a
+   tail carries, so an absent key has to be representable.
+2. **A key whose value is a nested object or an array of them stays on the tail.** It
+   round-trips through `STAC.json` from there, and typing it would need a `make` method and a
+   `lower` method of its own.
+3. **The name goes in the export list only if no package a bridge loads owns it.**
+   `STAC.Raster` is not exported: Rasters.jl exports its own `Raster`, and `Raster(asset)`
+   opening a COG is the call that matters in a session holding both.
+
 ## Fixtures
 
 Fixtures are vendored, never fetched during a test run.

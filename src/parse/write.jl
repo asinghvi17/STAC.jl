@@ -24,10 +24,11 @@ end
 # `version = STAC_VERSION` restores the key on the object kinds the spec requires it on;
 # `version = nothing` writes one back only when the producer sent one, which is how an
 # ItemCollection (a plain GeoJSON FeatureCollection) behaves.
-function preamble!(o::JSON.Object{String,Any}, typename::String, tail, version = STAC_VERSION)
+function preamble!(o::JSON.Object{String,Any}, typename::String, tail, extensions,
+                   version = STAC_VERSION)
     o["type"] = typename
     putif!(o, "stac_version", something(get(tail, "stac_version", nothing), version, Some(nothing)))
-    putif!(o, "stac_extensions", get(tail, "stac_extensions", nothing))
+    putif!(o, "stac_extensions", extensions)
     return o
 end
 
@@ -152,7 +153,7 @@ end
 
 function StructUtils.lower(::STACStyle, item::Item)
     o = JSON.Object{String,Any}()
-    preamble!(o, "Feature", item.metadata)
+    preamble!(o, "Feature", item.metadata, item.stac_extensions)
     o["id"] = item.id
     # `geometry: null` is meaningful: the spec uses it for items with no footprint.
     o["geometry"] = item.geometry
@@ -166,7 +167,7 @@ end
 
 function StructUtils.lower(::STACStyle, cat::Catalog)
     o = JSON.Object{String,Any}()
-    preamble!(o, "Catalog", cat.metadata)
+    preamble!(o, "Catalog", cat.metadata, cat.stac_extensions)
     o["id"] = cat.id
     putif!(o, "title", cat.title)
     o["description"] = cat.description
@@ -176,7 +177,7 @@ end
 
 function StructUtils.lower(::STACStyle, col::Collection)
     o = JSON.Object{String,Any}()
-    preamble!(o, "Collection", col.metadata)
+    preamble!(o, "Collection", col.metadata, col.stac_extensions)
     o["id"] = col.id
     putif!(o, "title", col.title)
     o["description"] = col.description
@@ -192,7 +193,10 @@ end
 
 function StructUtils.lower(::STACStyle, fc::ItemCollection)
     o = JSON.Object{String,Any}()
-    preamble!(o, "FeatureCollection", fc.metadata, nothing)
+    # A FeatureCollection is not a STAC object, so any `stac_extensions` it carries
+    # stayed in the tail; it is restored from there in the place the producer wrote it.
+    preamble!(o, "FeatureCollection", fc.metadata, get(fc.metadata, "stac_extensions", nothing),
+              nothing)
     o["features"] = fc.features
     o["links"] = fc.links
     putif!(o, "numberMatched", fc.numberMatched)

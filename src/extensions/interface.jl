@@ -60,3 +60,137 @@ An empty tuple gives `Any`, the dynamic form in which every prefixed key stays i
 extensiontype(::Tuple{}) = Any
 extensiontype(exts::Tuple{Vararg{Type}}) =
     NamedTuple{map(T -> Symbol(prefix(T)), exts), Tuple{map(T -> Union{T,Nothing}, exts)...}}
+
+# ---------------------------------------------------------------------------------------
+# Reaching an extension that was not parsed eagerly
+
+"""
+    STAC.exttail(obj) -> Metadata | NoMetadata
+
+Where `obj` keeps the extension keys no field of it names, which is where an extension with
+no eager slot is read from.
+
+| Object | Tail |
+|---|---|
+| [`Item`](@ref) | `properties.other`, since an item's extension keys live inside `properties` |
+| [`Asset`](@ref), [`Band`](@ref), [`Catalog`](@ref), [`Collection`](@ref) | `metadata`, the object's own unnamed keys |
+"""
+exttail(item::Item) = item.properties.other
+exttail(obj::Union{Asset,Band,Catalog,Collection}) = obj.metadata
+
+"""
+    STAC.fromtail(T, tail) -> Union{T,Nothing}
+
+The extension `T` built by looking each of its fields up as `"prefix:field"` in `tail`, or
+`nothing` when the tail holds none of them. This is the one function behind every access path
+that is not an eager field read.
+
+A field whose key is present is lifted to the field's type through the parse style, so a
+`DateTime` field reads an RFC 3339 string and a `Float64` field reads a JSON integer. Every
+field of an extension struct is therefore `Union{…,Nothing}`: an absent key has to be
+representable.
+"""
+function fromtail(::Type{T}, tail) where {T<:Extension}
+    p = prefix(T)
+    vals = ntuple(Val(fieldcount(T))) do i
+        v = get(tail, p * ":" * String(fieldname(T, i)), nothing)
+        return v === nothing ? nothing : lifttail(fieldtype(T, i), v)
+    end
+    all(isnothing, vals) && return nothing
+    return T(vals...)
+end
+
+# `lift` peels no `Union`, so the field's own `Nothing` is stripped before the call: a
+# `Union{DateTime,Nothing}` field must reach the style's RFC 3339 method, not `convert`.
+lifttail(::Type{FT}, v) where {FT} =
+    first(StructUtils.lift(STACStyle(), Base.nonnothingtype(FT), v))
+
+# Whether the item's declared extension tuple carries `T` in a field of its own.
+function iseager(::Type{E}, ::Type{T}) where {E,T<:Extension}
+    E <: NamedTuple || return false
+    name = Symbol(prefix(T))
+    name in fieldnames(E) || return false
+    return Base.nonnothingtype(fieldtype(E, name)) === T
+end
+
+"""
+    get(obj, T::Type{<:Extension}) -> Union{T,Nothing}
+    T(obj) -> T
+
+The extension `T` of an [`Item`](@ref), [`Asset`](@ref), [`Band`](@ref), [`Catalog`](@ref),
+or [`Collection`](@ref). `get` reports `nothing` when the object carries none of `T`'s keys;
+the constructor form throws instead.
+
+| Call | Source |
+|---|---|
+| `item.extensions.eo` | the eager field, when `extensions =` named `EO` |
+| `get(item, EO)` | that field when it exists, else a lookup in `properties.other` |
+| `EO(item)` | the same, throwing when the item carries no `eo:` key |
+| `Projection(asset)` | a lookup in the asset's own metadata |
+
+An item parsed with `metadata = false` kept no tail, so a lookup on one finds nothing: the
+keys were dropped at parse time rather than being absent from the document.
+
+```julia
+item = STAC.read(path; extensions = (EO,))
+get(item, STAC.View)          # from the tail: `View` was not declared
+STAC.View(item).off_nadir     # the same value, or an error if there is none
+```
+"""
+Base.get(item::Item{E}, ::Type{T}) where {E,T<:Extension} =
+    iseager(E, T) ? getfield(item.extensions, Symbol(prefix(T))) : fromtail(T, exttail(item))
+
+Base.get(obj::Union{Asset,Band,Catalog,Collection}, ::Type{T}) where {T<:Extension} =
+    fromtail(T, exttail(obj))
+
+@noinline _noextension(::Type{T}, obj) where {T} =
+    throw(ArgumentError("this " * string(nameof(typeof(obj))) * " carries no `" * prefix(T) *
+                        ":` keys, so it has no " * string(nameof(T)) *
+                        ". `get(obj, " * string(nameof(T)) * ")` reports that as `nothing`."))
+
+function (::Type{T})(obj::Union{Item,Asset,Band,Catalog,Collection}) where {T<:Extension}
+    ext = get(obj, T)
+    ext === nothing && _noextension(T, obj)
+    return ext
+end
+
+"""
+    STAC.declares(obj, T::Type{<:Extension}) -> Bool
+    STAC.declares(obj, uri::AbstractString) -> Bool
+
+Whether an [`Item`](@ref), [`Catalog`](@ref), or [`Collection`](@ref) lists the extension in
+its `stac_extensions`. The version segment of the schema URI is ignored, as pystac does, so
+an item declaring `eo/v1.1.0` declares [`EO`](@ref) even though this package types the
+2.0.0 fields.
+
+Declaring an extension and carrying its keys are different questions: `declares` reads the
+list, `get(obj, T)` reads the keys. Producers get both wrong in both directions.
+"""
+declares(obj, ::Type{T}) where {T<:Extension} = declares(obj, schema(T))
+
+function declares(obj::Union{Item,Catalog,Collection}, uri::AbstractString)
+    declared = obj.stac_extensions
+    declared === nothing && return false
+    head, rest = schemaparts(uri)
+    return any(u -> schemamatches(u, head, rest), declared)
+end
+
+const SCHEMA_VERSION = r"^(.*/)v[0-9][^/]*(/.*)$"
+
+"""
+    STAC.schemaparts(uri) -> (head, rest)
+
+A schema URI split around its version segment, or `(uri, "")` when it has none. The two
+halves are what [`STAC.declares`](@ref) compares, so that any version of the same schema
+matches.
+"""
+function schemaparts(uri::AbstractString)
+    m = match(SCHEMA_VERSION, uri)
+    m === nothing && return (String(uri), "")
+    return (String(m[1]), String(m[2]))
+end
+
+function schemamatches(u::AbstractString, head::AbstractString, rest::AbstractString)
+    uhead, urest = schemaparts(u)
+    return uhead == head && urest == rest
+end

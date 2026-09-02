@@ -63,7 +63,7 @@ end
 @testset "an item with only a start and an end matches an overlapping window" begin
     cat = catalog()
     item = first(search(cat; ids = "greenwich"))
-    span = Item(item.id, item.geometry, item.bbox,
+    span = Item(item.id, item.stac_extensions, item.geometry, item.bbox,
                 STAC.Properties(nothing, DateTime(2024, 6, 1), DateTime(2024, 6, 10),
                                 ntuple(_ -> nothing, 13)..., STAC.Metadata()),
                 item.links, item.assets, item.collection, item.extensions, item.metadata,

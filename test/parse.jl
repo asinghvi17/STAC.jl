@@ -26,8 +26,9 @@ end
     @test item.extensions.proj.code isa String
     @test item.extensions.proj.code == "EPSG:32659"
     @test item.extensions.proj.shape == [5558, 9559]
+    @test item.extensions.view.sun_elevation == 54.9
+    @test item.extensions.sci.doi == "10.5061/dryad.s2v81.2/27.2"
     # Keys of extensions with no struct stay reachable on the property tail.
-    @test haskey(item.properties.other, "view:sun_elevation")
     @test haskey(item.properties.other, "rd:sat_id")
 end
 
@@ -50,7 +51,8 @@ end
     @test item.extensions.eo.cloud_cover == 3.5
     @test item.extensions.proj.epsg == 4326
     @test item.extensions.proj.code === nothing
-    @test collect(keys(item.properties.other)) == ["sat:orbit_state"]
+    @test item.extensions.sat.orbit_state == "ascending"
+    @test isempty(item.properties.other)
 
     @test collect(keys(item.metadata)) == ["stac_version", "custom_top", "zzz"]
     @test item.collection === nothing

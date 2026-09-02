@@ -123,8 +123,9 @@ end
     @test leaf_extent(GO.Spherical(), byid(its, "unlocated")) === nothing
 
     # Without a bbox the geometry's own vertices give the rectangle, and the same lift runs.
-    nobbox = Item(item.id, item.geometry, nothing, item.properties, item.links,
-                  item.assets, item.collection, item.extensions, item.metadata, item.href)
+    nobbox = Item(item.id, item.stac_extensions, item.geometry, nothing, item.properties,
+                  item.links, item.assets, item.collection, item.extensions, item.metadata,
+                  item.href)
     @test Extents.extent(nobbox) == Extent(X = (-1.0, 1.0), Y = (-1.0, 1.0))
     @test leaf_extent(GO.Planar(), nobbox) == Extent(X = (-1.0, 1.0), Y = (-1.0, 1.0))
     @test leaf_extent(GO.Spherical(), nobbox) == spherebox(-1, -1, 1, 1)
