@@ -404,10 +404,11 @@ structs and `links` a list of them, which SQL reads and a flat parquet reader do
 ```julia
 using STAC, DuckDB
 
-items = STAC.read_geoparquet("test/fixtures/geoparquet/items.parquet")
-[i.id for i in items]                       # the ids the file carries
-items[1].extensions.eo.cloud_cover          # the typed extension slots are filled
-idx = spatialindex(items)
+its = STAC.read_geoparquet("test/fixtures/geoparquet/items.parquet")
+[i.id for i in its]
+# ["collectionless-item", "core-item", "extended-item", "simple-item"]
+its[3].extensions.eo.cloud_cover            # 1.2: the typed extension slots are filled
+idx = spatialindex(its)
 ```
 """
 function read_geoparquet end

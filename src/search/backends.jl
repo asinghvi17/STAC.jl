@@ -61,9 +61,15 @@ end
 PageState(s::APIItemSearch) = PageState(s.method, s.href, s.body, s.headers, false)
 
 function fetchpage(s::APIItemSearch, state::PageState)
-    hs = state.body === nothing ? state.headers : vcat(state.headers, [JSON_CONTENT_TYPE])
-    payload = state.body === nothing ? nothing : JSON.json(state.body; style = STACStyle())
-    bytes = request(s.io, state.method, state.href; headers = hs, body = payload)
+    body = state.body
+    # One call per shape rather than one carrying `body::Union{Nothing,String}`: keyword
+    # arguments are passed as one named tuple, and a union in it makes the call a dynamic
+    # dispatch that `--trim=safe` reports as unresolved.
+    bytes = body === nothing ?
+            request(s.io, state.method, state.href; headers = state.headers) :
+            request(s.io, state.method, state.href;
+                    headers = vcat(state.headers, [JSON_CONTENT_TYPE]),
+                    body = JSON.json(body; style = STACStyle()))
     page = JSON.parse(bytes, itemcollectiontype(s.opts); style = STACStyle())
     return sethref(filterpage(s.predicate, page), state.href)
 end
@@ -113,7 +119,14 @@ jsonobject(o::JSON.Object{String,Any}) = o
 jsonobject(d::AbstractDict) = JSON.Object{String,Any}(String(k) => v for (k, v) in d)
 
 linkheaders(::Nothing) = NO_HEADERS
-linkheaders(m::Metadata) = RequestHeaders([k => _queryvalue(v) for (k, v) in m])
+
+function linkheaders(m::Metadata)
+    hs = RequestHeaders()
+    for (k, v) in m
+        push!(hs, k => queryvalue(v))
+    end
+    return hs
+end
 
 function advance!(state::PageState, s::APIItemSearch, page::ItemCollection)
     link = nextlink(page)
@@ -181,6 +194,7 @@ searchlimit(host::HostDefaults, limit::Integer) = clamp(Int(limit), 1, host.max_
 """
     search(client; collections, ids, intersects, datetime, query, filter, filter_lang,
            sortby, fields, limit, method, extensions, geometry, metadata) -> APIItemSearch
+    search(client, opts::ParseOptions; …)
 
 A prepared item search. Nothing is fetched until the result is iterated, so building a search
 costs no request.
@@ -215,16 +229,19 @@ search(client; intersects = aoi, datetime = Date(2024, 6, 1))
 # pages arrive as they are reached
 collect(Iterators.take(s, 5))     # five items, from one request of 100
 ```
+
+`search(client, opts::ParseOptions; …)` is the explicit form, matching
+[`children(obj, opts; io)`](@ref children). It is what a `--trim=safe` program calls: the
+options are a type there, and building one from three keywords inside the call leaves the
+item type to a runtime computation over `DataType` values.
 """
-function search(client::Client; collections = nothing, ids = nothing, intersects = nothing,
-                datetime = nothing, query = nothing, filter = nothing, filter_lang = nothing,
-                sortby = nothing, fields = nothing, limit = nothing,
-                method::AbstractString = "POST", extensions = DEFAULT_EXTENSIONS,
-                geometry = DEFAULT_GEOMETRY, metadata = true)
+function search(client::Client, opts::ParseOptions; collections = nothing, ids = nothing,
+                intersects = nothing, datetime = nothing, query = nothing, filter = nothing,
+                filter_lang = nothing, sortby = nothing, fields = nothing, limit = nothing,
+                method::AbstractString = "POST")
     check_conformance(client; filter, query, sortby, fields)
     body = build_body(; collections, ids, intersects, datetime, query, filter, filter_lang,
                       sortby, fields, limit = searchlimit(client.host, limit))
-    opts = ParseOptions(; extensions, geometry, metadata)
     pred = predicate(intersects)
     verb = uppercase(method)
     href = requiredlink(client, "search"; method = verb)
@@ -233,24 +250,31 @@ function search(client::Client; collections = nothing, ids = nothing, intersects
     return APIItemSearch(client.io, verb, href, body, NO_HEADERS, client.host, opts, pred)
 end
 
+search(client::Client; extensions = DEFAULT_EXTENSIONS, geometry = DEFAULT_GEOMETRY,
+       metadata = true, kw...) =
+    search(client, ParseOptions(; extensions, geometry, metadata); kw...)
+
 """
     STAC.featuresearch(client, href; …) -> APIItemSearch
+    STAC.featuresearch(client, href, opts::ParseOptions; …)
 
 A `GET` search against an OGC API - Features items endpoint, which is what
 [`items(client, collection)`](@ref) returns. The keywords are [`search`](@ref)'s, minus the
 ones the path already fixes.
 """
-function featuresearch(client::Client, href::AbstractString; ids = nothing, intersects = nothing,
-                       datetime = nothing, query = nothing, filter = nothing,
-                       filter_lang = nothing, sortby = nothing, fields = nothing,
-                       limit = nothing, extensions = DEFAULT_EXTENSIONS,
-                       geometry = DEFAULT_GEOMETRY, metadata = true)
+function featuresearch(client::Client, href::AbstractString, opts::ParseOptions;
+                       ids = nothing, intersects = nothing, datetime = nothing,
+                       query = nothing, filter = nothing, filter_lang = nothing,
+                       sortby = nothing, fields = nothing, limit = nothing)
     body = build_body(; ids, intersects, datetime, query, filter, filter_lang, sortby, fields,
                       limit = searchlimit(client.host, limit))
-    opts = ParseOptions(; extensions, geometry, metadata)
     return APIItemSearch(client.io, "GET", withquery(href, querystring(body)), nothing,
                          NO_HEADERS, client.host, opts, predicate(intersects))
 end
+
+featuresearch(client::Client, href::AbstractString; extensions = DEFAULT_EXTENSIONS,
+              geometry = DEFAULT_GEOMETRY, metadata = true, kw...) =
+    featuresearch(client, href, ParseOptions(; extensions, geometry, metadata); kw...)
 
 # ---------------------------------------------------------------------------------------
 # The static backend

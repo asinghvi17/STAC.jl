@@ -94,10 +94,14 @@ StructUtils.lift(::STACStyle, ::Type{DateTime}, s::AbstractString) = (parse_rfc3
 
 A `DateTime` as the UTC RFC 3339 string STAC requires, always ending in `Z` and carrying
 milliseconds only when they are non-zero.
+
+The three milliseconds digits are spelled out rather than padded: `lpad` reaches
+`Base.repeat`, which `--trim=safe` reports as an unresolved invoke.
 """
 function format_rfc3339(dt::DateTime)
     ms = Dates.millisecond(dt)
     base = string(Dates.format(dt, dateformat"yyyy-mm-dd\THH:MM:SS"))
-    frac = ms == 0 ? "" : string(".", lpad(ms, 3, '0'))
+    frac = ms == 0 ? "" :
+           string('.', Char('0' + ms ÷ 100), Char('0' + (ms ÷ 10) % 10), Char('0' + ms % 10))
     return string(base, frac, "Z")
 end

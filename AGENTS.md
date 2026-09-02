@@ -29,6 +29,7 @@ directory writer is `src/publish.jl`, not `src/write.jl`, which would read as
 | `ext/` | weak-dependency bridges, one module per trigger package |
 | `test/fixtures/` | vendored documents; nothing here is fetched at test time |
 | `test/compile/` | `juliac --trim=safe` programs and the testset that builds them |
+| `.github/workflows/` | `CI.yml`: the test matrix, the trim programs, Aqua with the extensions loaded, and the docs build; `TagBot.yml` and `CompatHelper.yml`, the registry pair |
 
 ## Argument conventions
 
@@ -76,6 +77,60 @@ array branch of `applyeach` even when the source is an object.
 Adding a struct with a metadata tail means four edits: the struct, `nsynthetic`, the `@eval`
 loop that gives it a `make`, and a `lower` method in `parse/write.jl`.
 
+## Trimming
+
+Static compilation is a supported target, and `test/compile/` is where it is measured: each
+program there builds with `juliac --experimental --trim=safe`, and a verifier error fails the
+build rather than warning. Build one on its own with
+
+```sh
+julia --project=test/compile \
+  "$(julia -e 'print(joinpath(Sys.BINDIR, "..", "share", "julia", "juliac", "juliac.jl"))')" \
+  --output-exe /tmp/prog --experimental --trim=safe test/compile/<program>.jl
+```
+
+The log lists every error twice, so what to count is distinct statements.
+
+**The rule under all of it: a call resolves when the compiler knows the concrete type of every
+argument, and both arms of a branch are compiled whatever the runtime values.** Everything
+below follows from that, and each row was measured against a program.
+
+| Shape | Cost | Instead |
+|---|---|---|
+| a call on a value typed `Any` | 1 per call site, whether the callee has one method or five | narrow with `isa` *at the call site*: `v isa Vector{Any}` resolves the loop over it, `v isa AbstractVector` leaves it dynamic |
+| a keyword argument whose value is a union, `body::Union{Nothing,String}` | 1 | one call per shape: keywords travel as one `NamedTuple`, and a union in it is not a concrete type |
+| a type computed at run time, `ParseOptions(; extensions, geometry, metadata)` | 4 | the explicit `opts::ParseOptions` form every entry point carries beside its keyword one |
+| a closure handed to `applyeach` | 1 per level | a callable struct ([Parsing](#parsing)) |
+| a recursive typed parse, one `make` calling itself | 1 per level | one method per nesting level ([Parsing](#parsing)) |
+| a `Type` field on an exception, or interpolation in a message | 1 per throw site | `String`/`Int`/`Symbol` fields and a `showerror` that prints one argument at a time ([Errors](#errors)) |
+
+A trim program names its parse types as top-level constants, passes `io` explicitly rather
+than reading the scoped default, and lives beside a testset entry in
+`test/compile/runtests.jl`.
+
+Upstream calls that cost verifier errors, all of them measured here, with what replaced them:
+
+| Call | Errors | Replacement |
+|---|---|---|
+| `IntervalArithmetic` ≥ 0.22.30 `__init__`, which `ccall`s a library named by a JLL property | the binary aborts before `main` | `test/compile/Project.toml` pins `=0.22.23` |
+| `GI.calc_extent`, an `extrema` fold over `Base.FlatteningRF` | 28 | `STAC.pointextent`, one method per geometry level |
+| GeometryOps' `_spherical_region_extent`, which captures a reassigned variable | ~20 | leaves come from the item's `bbox`, through `STAC.spherebox` |
+| `join` over a generator, which is all of `URIs.escapeuri` | 10, in `Base.AnnotatedString` | `STAC.percentencode`, a byte loop |
+| `lpad`, and `Base.repeat` under it | 2 | the digits spelled out (`STAC.format_rfc3339`) |
+| `eachline`, whose `ondone` field is typed `Function` | 2 | `read_ndjson` opens and closes the stream itself |
+| `open(f, path, "w")`, splatting through `_apply_iterate` | 1 | open explicitly, `close` in a `finally` |
+| JSON.jl writing an `Any`-valued document | 4 for a search body, 12 for `STAC.json` | nothing yet: `StructUtils.lower` is called per value, and a JSON document's values are `Any` |
+
+An `__init__` is not itself a problem: STAC's registers an error hint, and both linking
+programs carry it.
+
+The last row is why `test/compile/api_search.jl` does not link. A STAC API carries JSON
+documents in the request as well as the response — the search body, a `next` link's body and
+header map — so the API path costs six unresolved statements where the parse path costs none.
+That program runs as a script in the testset and its verifier errors are held to a budget, so
+the cost is a number CI reports rather than a surprise; `runtests.jl` names each one and what
+would close it.
+
 ## Extensions
 
 An extension is a struct plus `prefix` and `schema`. Field names are the JSON keys after the
@@ -93,6 +148,20 @@ Three rules follow from the access paths in `src/extensions/interface.jl`:
    `STAC.Raster` is not exported: Rasters.jl exports its own `Raster`, and `Raster(asset)`
    opening a COG is the call that matters in a session holding both.
 
+Shipping one is five edits, and nothing else in the package learns its name — `fromtail`
+walks `fieldnames`, and the writer puts each non-`nothing` field back under the prefix:
+
+| # | Edit |
+|---|---|
+| 1 | `src/extensions/<prefix>.jl`: the struct, `prefix(::Type{T})`, `schema(::Type{T})` at the version the fields come from |
+| 2 | one `include` in `src/STAC.jl`, beside the other six |
+| 3 | `DEFAULT_EXTENSIONS` in `src/parse/options.jl`, when producers set its keys often enough to earn a field on every item; a struct left out is still reached by `get(item, T)` and `extensions = (…, T)` |
+| 4 | the export list, under rule 3 above |
+| 5 | `test/extensions.jl`: the three access paths against a fixture that carries the keys |
+
+A user's own extension is steps 1 and 5 in their own package, which is the interface working
+as designed.
+
 ## Fixtures
 
 Fixtures are vendored, never fetched during a test run.
@@ -102,6 +171,7 @@ Fixtures are vendored, never fetched during a test run.
 | `test/fixtures/stac-spec/` | the `examples/` directory of radiantearth/stac-spec, pinned in `SOURCE.txt` |
 | `test/fixtures/hand/` | hand-written documents covering shapes the spec examples miss |
 | `test/fixtures/real-world/` | one recorded response per public endpoint, recorded once with `curl` |
+| `test/fixtures/endpoints/` | one directory per API, recorded by `test/fixtures/record.jl` with the `requests.json` manifest that replays it |
 | `test/fixtures/static/` | one catalog published three ways, derived from the spec examples |
 | `test/fixtures/tokens/` | credential responses in the shape a service sends, with fixed expiries |
 | `test/fixtures/geoparquet/` | parquet files written by the Python libraries that define stac-geoparquet and GeoParquet |
@@ -117,12 +187,46 @@ prefix and raises on any href it was not given. Fetching goes through the produc
 `AbstractIO` seam, never around it; the one exception is `test/io.jl`, which serves the same
 fixtures over a loopback `HTTP.serve` so the HTTP path is exercised over real sockets.
 
+### Recording an endpoint
+
+```sh
+julia --project=. test/fixtures/record.jl [endpoint …]
+```
+
+Run by hand, never in CI. Each endpoint named on the command line — all six with none — gets
+its landing page, conformance document, first page of collections, one collection, one page
+of that collection's items, and two pages of one search, through the production `HTTPIO`.
+Four rules keep a recording usable as evidence rather than as a copy of the client:
+
+1. **The recorder reads each `next` link from the spec, not from `STAC.pages`.** A client that
+   pages differently than the spec says fails here.
+2. **`requests.json` names the exact `(method, href, body)` that produced each file**, and
+   `FixtureIO` matches all three. A client that formats a request differently fails to replay
+   rather than being answered anyway.
+3. **The window is fixed** — 2024-06-01 to 2024-06-05, two items a page — far enough in the
+   past that a re-record answers with the same items.
+4. **Five seconds between requests.** CDSE answers two searches in quick succession with a
+   429.
+
+Adding an endpoint is one `Endpoint(name, url, collection)` row. A credential recording
+(`endpoints/planetary-computer-sas/`) needs hand-written bodies beside it in
+`fixtures/tokens/`, since which side of a recorded expiry the clock is on changes by the hour.
+
 ## Tests
 
 `Aqua.test_all` first, then one `@safetestset` per source concern.
 `Pkg.test(test_args = ["parse", "write"])` runs a subset. The `--trim=safe` programs run when
 they are named (`test_args = ["compile"]`) or `STAC_COMPILE_TESTS=1` is set, and as their own
 CI job.
+
+Three environment variables switch on the runs that are too slow or too networked for the
+default:
+
+| Variable | Effect |
+|---|---|
+| `STAC_COMPILE_TESTS=1` | build the `test/compile/` programs, as `test_args = ["compile"]` does |
+| `STAC_EXTENSION_AQUA=1` | load all six trigger packages before Aqua, so the five extensions are checked; the `aqua-extensions` CI job |
+| `STAC_LIVE_TESTS=1` | `test/live/runtests.jl` against the six public endpoints, by hand |
 
 ## Writing
 

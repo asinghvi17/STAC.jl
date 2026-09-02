@@ -48,8 +48,8 @@ keyed by each struct's [`STAC.prefix`](@ref), with `Union{T,Nothing}` values so 
 carries none of an extension's keys reports `nothing`.
 
 ```jldoctest
-julia> STAC.extensiontype((STAC.EO, STAC.Projection))
-@NamedTuple{eo::Union{Nothing, STAC.EO}, proj::Union{Nothing, STAC.Projection}}
+julia> STAC.extensiontype((EO, Projection))
+@NamedTuple{eo::Union{Nothing, EO}, proj::Union{Nothing, Projection}}
 ```
 
 An empty tuple gives `Any`, the dynamic form in which every prefixed key stays in

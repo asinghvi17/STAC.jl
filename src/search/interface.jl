@@ -133,9 +133,9 @@ A `datetime` argument as the RFC 3339 string a STAC API takes.
 | `String` | passed through unchanged |
 
 ```julia
-normalize_datetime(DateTime(2024, 6, 1))            # "2024-06-01T00:00:00Z"
-normalize_datetime(Date(2024, 6, 1))                # "2024-06-01T00:00:00Z/2024-06-01T23:59:59.999Z"
-normalize_datetime((DateTime(2024, 6, 1), nothing)) # "2024-06-01T00:00:00Z/.."
+STAC.normalize_datetime(DateTime(2024, 6, 1))            # "2024-06-01T00:00:00Z"
+STAC.normalize_datetime(Date(2024, 6, 1))                # "2024-06-01T00:00:00Z/2024-06-01T23:59:59.999Z"
+STAC.normalize_datetime((DateTime(2024, 6, 1), nothing)) # "2024-06-01T00:00:00Z/.."
 ```
 """
 normalize_datetime(::Nothing) = nothing
@@ -178,8 +178,8 @@ A `datetime` argument as the pair of instants a client-side filter compares agai
 bare date as the whole day.
 
 ```julia
-datetime_interval(Date(2024, 6, 1))     # (DateTime(2024, 6, 1), DateTime(2024, 6, 1, 23, 59, 59, 999))
-datetime_interval("2024-06-01/..")      # (DateTime(2024, 6, 1), nothing)
+STAC.datetime_interval(Date(2024, 6, 1))    # (DateTime(2024, 6, 1), DateTime(2024, 6, 1, 23, 59, 59, 999))
+STAC.datetime_interval("2024-06-01/..")     # (DateTime(2024, 6, 1), nothing)
 ```
 """
 datetime_interval(::Nothing) = (nothing, nothing)
@@ -267,9 +267,9 @@ endpoint, so one argument carries both and its type decides.
 | any GeoInterface geometry | `:intersects` |
 
 ```julia
-classify(Extent(X = (-123, -122), Y = (37, 38)))    # (:bbox, [-123.0, 37.0, -122.0, 38.0])
-classify((-123, 37, -122, 38))                      # the same bbox, as four numbers
-classify(GeoJSON.read(read("aoi.geojson", String)))  # (:intersects, a Float64 GeoJSON polygon)
+STAC.classify(Extent(X = (-123, -122), Y = (37, 38)))    # (:bbox, [-123.0, 37.0, -122.0, 38.0])
+STAC.classify((-123, 37, -122, 38))                      # the same bbox, as four numbers
+STAC.classify(GeoJSON.read(read("aoi.geojson", String))) # (:intersects, a Float64 GeoJSON polygon)
 ```
 """
 classify(::Nothing) = (:none, nothing)
@@ -346,13 +346,65 @@ function build_body(; collections = nothing, ids = nothing, intersects = nothing
     return body
 end
 
-_queryvalue(v::AbstractString) = String(v)
-_queryvalue(v::Bool) = string(v)
-_queryvalue(v::Real) = string(v)
-_queryvalue(v::AbstractVector) =
-    all(x -> x isa Union{AbstractString,Real}, v) ? join(map(_queryvalue, v), ',') :
-    JSON.json(v; style = STACStyle())
-_queryvalue(v) = JSON.json(v; style = STACStyle())
+"""
+    STAC.queryvalue(v) -> String
+
+One value of a search body as a query string spells it: a list of scalars comma-joined,
+anything nested as JSON, a scalar as itself.
+
+This is one method over a ladder of `isa` checks rather than one method per type, because the
+values of a body are `Any`: a set of methods makes every read of one a dynamic dispatch,
+which `--trim=safe` reports as an unresolved call.
+"""
+function queryvalue(v)
+    v isa String && return v
+    v isa Bool && return v ? "true" : "false"
+    v isa Int64 && return string(v)
+    v isa Float64 && return string(v)
+    v isa Vector{Any} && return _scalars(v) ? _commajoin(v) : JSON.json(v; style = STACStyle())
+    v isa Vector{String} && return _commajoin(v)
+    v isa Vector{Float64} && return _commajoin(v)
+    return JSON.json(v; style = STACStyle())
+end
+
+_scalars(v::Vector{Any}) = all(x -> x isa Union{AbstractString,Real}, v)
+
+function _commajoin(v::AbstractVector)
+    s = ""
+    for i in eachindex(v)
+        s = i == firstindex(v) ? queryvalue(v[i]) : string(s, ',', queryvalue(v[i]))
+    end
+    return s
+end
+
+# RFC 3986's unreserved set without `~`. That is the set `URIs.escapeuri` leaves alone, and
+# matching it exactly is what makes this a drop-in: the two agree on all 256 bytes.
+_unreserved(b::UInt8) =
+    (UInt8('a') <= b <= UInt8('z')) || (UInt8('A') <= b <= UInt8('Z')) ||
+    (UInt8('0') <= b <= UInt8('9')) || b == UInt8('-') || b == UInt8('.') || b == UInt8('_')
+
+_hexdigit(b::UInt8) = b < 0x0a ? UInt8('0') + b : UInt8('A') + (b - 0x0a)
+
+"""
+    STAC.percentencode(s::String) -> String
+
+`s` percent-encoded for one query string field, byte by byte, escaping everything outside
+RFC 3986's unreserved set.
+
+`URIs.escapeuri` does the same job through `join` over a generator, whose annotated-string
+path costs ten `--trim=safe` verifier errors; this loop costs none and allocates one buffer.
+"""
+function percentencode(s::String)
+    out = UInt8[]
+    for b in codeunits(s)
+        if _unreserved(b)
+            push!(out, b)
+        else
+            push!(out, UInt8('%'), _hexdigit(b >> 4), _hexdigit(b & 0x0f))
+        end
+    end
+    return String(out)
+end
 
 """
     STAC.querystring(body) -> String
@@ -361,16 +413,17 @@ A search body as the query string its `GET` form takes: lists comma-joined, anyt
 (`intersects`, `filter`, `query`) as JSON, everything percent-encoded.
 
 ```julia
-querystring(build_body(; collections = "sentinel-2-l2a", limit = 2))
+STAC.querystring(STAC.build_body(; collections = "sentinel-2-l2a", limit = 2))
 # "collections=sentinel-2-l2a&limit=2"
 ```
 """
 function querystring(body)
-    parts = String[]
+    query = ""
     for (k, v) in body
-        push!(parts, URIs.escapeuri(k) * "=" * URIs.escapeuri(_queryvalue(v)))
+        field = string(percentencode(String(k)), '=', percentencode(queryvalue(v)))
+        query = isempty(query) ? field : string(query, '&', field)
     end
-    return join(parts, '&')
+    return query
 end
 
 withquery(href::AbstractString, query::AbstractString) =

@@ -56,3 +56,50 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - name: Build and run the trim programs
         run: julia --project=. -e 'using Pkg; Pkg.test(test_args = ["compile"])'
+
+  aqua-extensions:
+    name: Aqua with the extensions loaded
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      # Aqua's ambiguity and piracy checks see only what a session has loaded, and the `test`
+      # job runs them before any testset reaches a weak dependency. This one loads all six
+      # trigger packages first, so the five extensions are checked too.
+      - name: Run Aqua over STAC and its extensions
+        run: julia --project=. -e 'using Pkg; Pkg.test(test_args = ["aqua"])'
+        env:
+          STAC_EXTENSION_AQUA: "1"
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+      # DocumenterVitepress builds the site with `npm`. 0.2 ships its own through
+      # NodeJS_20_jll; this pins a Node against the release that stops.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      # Runs `julia --project=docs docs/make.jl`, which builds the site and runs the
+      # doctests, then deploys to gh-pages and to a preview branch for a pull request.
+      - uses: julia-actions/julia-docdeploy@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

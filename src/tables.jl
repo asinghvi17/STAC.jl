@@ -3,12 +3,18 @@
 
 """
     STAC.BBox4
-    STAC.BBox6
 
-A row's `bbox`, as the struct column stac-geoparquet defines: the four planar bounds, or the
-six a 3D box carries, in the order STAC writes them.
+A row's `bbox`, as the struct column stac-geoparquet defines it: the four planar bounds, in
+the order STAC writes them. [`STAC.BBox6`](@ref) is the 3D case.
 """
 const BBox4 = @NamedTuple{xmin::Float64, ymin::Float64, xmax::Float64, ymax::Float64}
+
+"""
+    STAC.BBox6
+
+A row's `bbox` when the item carries an elevation interval: the six bounds, in the order STAC
+writes them. [`STAC.BBox4`](@ref) is the planar case.
+"""
 const BBox6 = @NamedTuple{xmin::Float64, ymin::Float64, zmin::Float64,
                           xmax::Float64, ymax::Float64, zmax::Float64}
 

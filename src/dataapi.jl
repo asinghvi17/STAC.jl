@@ -45,6 +45,10 @@ end
 DataAPI.metadata(obj::TailedObject, key::AbstractString, default; style::Bool = false) =
     (value = get(objecttail(obj), key, default); style ? (value, :note) : value)
 
+DataAPI.colmetadatasupport(::Type{<:Union{STACTable,ItemRows}}) = (read = true, write = false)
+
+const COLUMN_SOURCE = "stac_extension"
+
 """
     DataAPI.colmetadatakeys(items[, column])
     DataAPI.colmetadata(items, column, key[, default]; style = false)
@@ -54,10 +58,6 @@ Where a column of an item table comes from. A column named `"prefix:field"` carr
 `DataFrame(items)` says where `"eo:cloud_cover"` is specified without the caller keeping a
 prefix table of their own.
 """
-DataAPI.colmetadatasupport(::Type{<:Union{STACTable,ItemRows}}) = (read = true, write = false)
-
-const COLUMN_SOURCE = "stac_extension"
-
 function DataAPI.colmetadatakeys(t::Union{STACTable,ItemRows})
     names = Tables.rows(t).columns.names
     return (nm => (COLUMN_SOURCE,) for nm in names if hassource(t, nm))

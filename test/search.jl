@@ -259,6 +259,24 @@ end
     @test occursin("datetime=2024-06-01T00%3A00%3A00Z%2F2024-06-05T00%3A00%3A00Z", s.href)
     @test STAC.querystring(build_body(; intersects = (-1, 1, 2, 3), limit = 1)) ==
           "bbox=-1.0%2C1.0%2C2.0%2C3.0&limit=1"
+
+    # Everything outside RFC 3986's unreserved set is escaped, a multi-byte character one
+    # byte at a time, which is what `URIs.escapeuri` does for the same string.
+    @test STAC.percentencode("a~b c/é") == "a%7Eb%20c%2F%C3%A9"
+    @test STAC.queryvalue(Any["a", 2, 3.5, true]) == "a,2,3.5,true"
+    @test STAC.queryvalue(Any[Dict("field" => "id")]) == "[{\"field\":\"id\"}]"
+end
+
+@testset "a search takes its parse options as a value" begin
+    client, _, _ = recordedsearch("earth-search")
+    opts = ParseOptions(; extensions = (), metadata = false)
+    s = search(client, opts; collections = ["sentinel-2-l2a"], datetime = WINDOW, limit = 2)
+    @test eltype(s) == itemtype(opts)
+    @test s.body == recorded("earth-search", "search-1.json")["body"]
+
+    # The keyword form names the same options, and both reach the features endpoint too.
+    @test eltype(search(client; extensions = (), metadata = false)) == itemtype(opts)
+    @test eltype(items(client, "sentinel-2-l2a", opts; limit = 2)) == itemtype(opts)
 end
 
 @testset "a collection's items come through the features endpoint" begin

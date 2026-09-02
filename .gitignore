@@ -3,6 +3,10 @@ Manifest.toml
 /docs/Manifest.toml
 .DS_Store
 
+# DocumenterVitepress manages the npm side of the docs build
+/docs/node_modules/
+/docs/package-lock.json
+
 # Agent scratch space: task artifacts live outside the repo (symlink), local config is per-machine
 /.humanlayer/tasks/
 /.humanlayer/workspace.local.json

@@ -21,7 +21,7 @@ feature, with the geometry column typed and every other column as the producer w
 ```julia
 using STAC, GeoParquet
 
-asset = Asset("test/fixtures/geoparquet/footprints.parquet",
+asset = Asset(abspath("test/fixtures/geoparquet/footprints.parquet"),
               "application/vnd.apache.parquet", nothing, nothing, ["data"], nothing,
               NoMetadata())
 df = STAC.read(asset)

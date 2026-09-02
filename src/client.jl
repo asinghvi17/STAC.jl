@@ -103,11 +103,19 @@ end
 
 The `conformsTo` array of a landing page, which the parse leaves in the catalog's metadata
 tail. An endpoint that publishes none gives an empty vector.
+
+The two `isa` checks name the concrete types the parse stores, `Vector{Any}` of `String`: a
+tail value is `Any`, so a check against `AbstractVector` would leave the loop over it a
+dynamic dispatch, which `--trim=safe` reports as an unresolved call.
 """
 function conformanceclasses(root::Catalog)
+    classes = String[]
     v = get(root.metadata, "conformsTo", nothing)
-    v isa AbstractVector || return String[]
-    return String[x for x in v if x isa AbstractString]
+    v isa Vector{Any} || return classes
+    for x in v
+        x isa String && push!(classes, x)
+    end
+    return classes
 end
 
 """
@@ -201,7 +209,7 @@ One collection by id, from `<data href>/<id>`.
 
 ```julia
 client = Client("https://earth-search.aws.element84.com/v1")
-col = collection(client, "sentinel-2-l2a")
+col = STAC.collection(client, "sentinel-2-l2a")
 col.extent.spatial.bbox[1]          # the collection's footprint, as a bbox
 first(items(client, col)).id        # its first item, through /collections/<id>/items
 ```
@@ -217,6 +225,7 @@ collection(client::Client, id::AbstractString; kw...) =
 """
     items(client, collection_id; limit, datetime, bbox, extensions, geometry, metadata)
     items(client, collection::Collection; …)
+    items(client, collection_id, opts::ParseOptions; …)
 
 The items of one collection through the OGC API - Features endpoint
 (`/collections/<id>/items`), as an [`AbstractItemSearch`](@ref STAC.AbstractItemSearch): a
@@ -225,13 +234,17 @@ lazy iterator of [`Item`](@ref)s that follows `next` links.
 This is the `GET` twin of [`search`](@ref) and takes the same spatial and temporal keywords;
 `collections` and `ids` are not among them, since the path already names the collection.
 """
-function items(client::Client, collection_id::AbstractString; kw...)
-    href = rstrip(requiredlink(client, "data"), '/') * "/" * collection_id * "/items"
-    return featuresearch(client, href; kw...)
-end
+itemshref(client::Client, collection_id::AbstractString) =
+    rstrip(requiredlink(client, "data"), '/') * "/" * collection_id * "/items"
 
-function items(client::Client, col::Collection; kw...)
+function itemshref(client::Client, col::Collection)
     href = linkhref(col, "items")
     href === nothing && _nolink(client, "items")
-    return featuresearch(client, href; kw...)
+    return href
 end
+
+items(client::Client, collection::Union{AbstractString,Collection}, opts::ParseOptions; kw...) =
+    featuresearch(client, itemshref(client, collection), opts; kw...)
+
+items(client::Client, collection::Union{AbstractString,Collection}; kw...) =
+    featuresearch(client, itemshref(client, collection); kw...)
