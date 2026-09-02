@@ -1,0 +1,61 @@
+{
+  "recorded": "2026-09-02",
+  "requests": [
+    {
+      "body": null,
+      "href": "https://landsatlook.usgs.gov/stac-server",
+      "method": "GET",
+      "response": "root.json"
+    },
+    {
+      "body": null,
+      "href": "https://landsatlook.usgs.gov/stac-server/conformance",
+      "method": "GET",
+      "response": "conformance.json"
+    },
+    {
+      "body": null,
+      "href": "https://landsatlook.usgs.gov/stac-server/collections",
+      "method": "GET",
+      "response": "collections.json"
+    },
+    {
+      "body": null,
+      "href": "https://landsatlook.usgs.gov/stac-server/collections/landsat-c2l2-sr",
+      "method": "GET",
+      "response": "collection.json"
+    },
+    {
+      "body": null,
+      "href": "https://landsatlook.usgs.gov/stac-server/collections/landsat-c2l2-sr/items?limit=2",
+      "method": "GET",
+      "response": "items.json"
+    },
+    {
+      "body": {
+        "collections": [
+          "landsat-c2l2-sr"
+        ],
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2
+      },
+      "href": "https://landsatlook.usgs.gov/stac-server/search",
+      "method": "POST",
+      "response": "search-1.json"
+    },
+    {
+      "body": {
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "collections": [
+          "landsat-c2l2-sr"
+        ],
+        "limit": 2,
+        "next": "2024-06-04T23:57:11.609646Z,LC08_L2SP_081243_20240604_20240627_02_T1_SR,landsat-c2l2-sr"
+      },
+      "href": "https://landsatlook.usgs.gov/stac-server/search",
+      "method": "POST",
+      "response": "search-2.json"
+    }
+  ],
+  "url": "https://landsatlook.usgs.gov/stac-server"
+}

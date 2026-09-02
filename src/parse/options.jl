@@ -42,33 +42,35 @@ struct ParseOptions{E,G,M} end
 ParseOptions(; extensions = DEFAULT_EXTENSIONS, geometry = DEFAULT_GEOMETRY, metadata = true) =
     ParseOptions{extensiontype(extensions),geometry,metadatatype(metadata)}()
 
+# Each of these takes the options either as a value or as their type, so a container
+# parametrised on `ParseOptions` (an item search) can name its element type from `O` alone.
 """
     STAC.itemtype(opts::ParseOptions) -> Type{<:Item}
 
 The `Item{E,G,M}` these options name.
 """
-itemtype(::ParseOptions{E,G,M}) where {E,G,M} = Item{E,G,M}
+itemtype(::Type{ParseOptions{E,G,M}}) where {E,G,M} = Item{E,G,M}
 
 """
     STAC.itemcollectiontype(opts::ParseOptions) -> Type{<:ItemCollection}
 
 The `ItemCollection{E,G,M}` these options name.
 """
-itemcollectiontype(::ParseOptions{E,G,M}) where {E,G,M} = ItemCollection{E,G,M}
+itemcollectiontype(::Type{ParseOptions{E,G,M}}) where {E,G,M} = ItemCollection{E,G,M}
 
 """
     STAC.catalogtype(opts::ParseOptions) -> Type{<:Catalog}
 
 The `Catalog{M}` these options name.
 """
-catalogtype(::ParseOptions{E,G,M}) where {E,G,M} = Catalog{M}
+catalogtype(::Type{ParseOptions{E,G,M}}) where {E,G,M} = Catalog{M}
 
 """
     STAC.collectiontype(opts::ParseOptions) -> Type{<:Collection}
 
 The `Collection{M}` these options name.
 """
-collectiontype(::ParseOptions{E,G,M}) where {E,G,M} = Collection{M}
+collectiontype(::Type{ParseOptions{E,G,M}}) where {E,G,M} = Collection{M}
 
 """
     STAC.childtype(opts::ParseOptions) -> Type
@@ -76,4 +78,8 @@ collectiontype(::ParseOptions{E,G,M}) where {E,G,M} = Collection{M}
 What a `child`, `parent`, or `root` link resolves to: `Union{Catalog{M}, Collection{M}}`,
 narrowed to one of the two by the document's own `type` key.
 """
-childtype(::ParseOptions{E,G,M}) where {E,G,M} = Union{Catalog{M},Collection{M}}
+childtype(::Type{ParseOptions{E,G,M}}) where {E,G,M} = Union{Catalog{M},Collection{M}}
+
+for f in (:itemtype, :itemcollectiontype, :catalogtype, :collectiontype, :childtype)
+    @eval $f(opts::ParseOptions) = $f(typeof(opts))
+end

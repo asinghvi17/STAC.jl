@@ -1,0 +1,61 @@
+{
+  "recorded": "2026-09-02",
+  "requests": [
+    {
+      "body": null,
+      "href": "https://stac.itslive.cloud",
+      "method": "GET",
+      "response": "root.json"
+    },
+    {
+      "body": null,
+      "href": "https://stac.itslive.cloud/conformance",
+      "method": "GET",
+      "response": "conformance.json"
+    },
+    {
+      "body": null,
+      "href": "https://stac.itslive.cloud/collections",
+      "method": "GET",
+      "response": "collections.json"
+    },
+    {
+      "body": null,
+      "href": "https://stac.itslive.cloud/collections/itslive-cubes",
+      "method": "GET",
+      "response": "collection.json"
+    },
+    {
+      "body": null,
+      "href": "https://stac.itslive.cloud/collections/itslive-cubes/items?limit=2",
+      "method": "GET",
+      "response": "items.json"
+    },
+    {
+      "body": {
+        "collections": [
+          "itslive-granules"
+        ],
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2
+      },
+      "href": "https://stac.itslive.cloud/search",
+      "method": "POST",
+      "response": "search-1.json"
+    },
+    {
+      "body": {
+        "collections": [
+          "itslive-granules"
+        ],
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2,
+        "token": "next:itslive-granules:LC08_L1TP_081244_20240604_20240627_02_T1_X_LC09_L1TP_081244_20250615_20250616_02_T1_G0120V02_P084"
+      },
+      "href": "https://stac.itslive.cloud/search",
+      "method": "POST",
+      "response": "search-2.json"
+    }
+  ],
+  "url": "https://stac.itslive.cloud"
+}

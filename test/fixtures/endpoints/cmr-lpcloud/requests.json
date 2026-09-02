@@ -1,0 +1,51 @@
+{
+  "recorded": "2026-09-02",
+  "requests": [
+    {
+      "body": null,
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD",
+      "method": "GET",
+      "response": "root.json"
+    },
+    {
+      "body": null,
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/conformance",
+      "method": "GET",
+      "response": "conformance.json"
+    },
+    {
+      "body": null,
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/collections",
+      "method": "GET",
+      "response": "collections.json"
+    },
+    {
+      "body": null,
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/collections/MYD09GA_061",
+      "method": "GET",
+      "response": "collection.json"
+    },
+    {
+      "body": null,
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/collections/MYD09GA_061/items?limit=2",
+      "method": "GET",
+      "response": "items.json"
+    },
+    {
+      "body": {
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2
+      },
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/search",
+      "method": "POST",
+      "response": "search-1.json"
+    },
+    {
+      "body": null,
+      "href": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/search?datetime=2024-06-01T00%3A00%3A00Z%2F2024-06-05T00%3A00%3A00Z&limit=2&cursor=eyJqc29uIjoiW1wibHBjbG91ZFwiLDE3MDQwNjcyMDAwMDAsMzM2NjcxNDUwNF0iLCJ1bW0iOiJbXCJscGNsb3VkXCIsMTcwNDA2NzIwMDAwMCwzMzY2NzE0NTA0XSJ9",
+      "method": "GET",
+      "response": "search-2.json"
+    }
+  ],
+  "url": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
+}

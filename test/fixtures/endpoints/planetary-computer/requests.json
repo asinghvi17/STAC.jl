@@ -1,0 +1,61 @@
+{
+  "recorded": "2026-09-02",
+  "requests": [
+    {
+      "body": null,
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1",
+      "method": "GET",
+      "response": "root.json"
+    },
+    {
+      "body": null,
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1/conformance",
+      "method": "GET",
+      "response": "conformance.json"
+    },
+    {
+      "body": null,
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1/collections",
+      "method": "GET",
+      "response": "collections.json"
+    },
+    {
+      "body": null,
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/daymet-annual-pr",
+      "method": "GET",
+      "response": "collection.json"
+    },
+    {
+      "body": null,
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/daymet-annual-pr/items?limit=2",
+      "method": "GET",
+      "response": "items.json"
+    },
+    {
+      "body": {
+        "collections": [
+          "sentinel-2-l2a"
+        ],
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2
+      },
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1/search",
+      "method": "POST",
+      "response": "search-1.json"
+    },
+    {
+      "body": {
+        "collections": [
+          "sentinel-2-l2a"
+        ],
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2,
+        "token": "next:sentinel-2-l2a:S2B_MSIL2A_20240604T235129_R073_T59UPU_20240605T022357"
+      },
+      "href": "https://planetarycomputer.microsoft.com/api/stac/v1/search",
+      "method": "POST",
+      "response": "search-2.json"
+    }
+  ],
+  "url": "https://planetarycomputer.microsoft.com/api/stac/v1"
+}

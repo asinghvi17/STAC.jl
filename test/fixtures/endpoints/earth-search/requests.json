@@ -1,0 +1,61 @@
+{
+  "recorded": "2026-09-02",
+  "requests": [
+    {
+      "body": null,
+      "href": "https://earth-search.aws.element84.com/v1",
+      "method": "GET",
+      "response": "root.json"
+    },
+    {
+      "body": null,
+      "href": "https://earth-search.aws.element84.com/v1/conformance",
+      "method": "GET",
+      "response": "conformance.json"
+    },
+    {
+      "body": null,
+      "href": "https://earth-search.aws.element84.com/v1/collections",
+      "method": "GET",
+      "response": "collections.json"
+    },
+    {
+      "body": null,
+      "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-pre-c1-l2a",
+      "method": "GET",
+      "response": "collection.json"
+    },
+    {
+      "body": null,
+      "href": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-pre-c1-l2a/items?limit=2",
+      "method": "GET",
+      "response": "items.json"
+    },
+    {
+      "body": {
+        "collections": [
+          "sentinel-2-l2a"
+        ],
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "limit": 2
+      },
+      "href": "https://earth-search.aws.element84.com/v1/search",
+      "method": "POST",
+      "response": "search-1.json"
+    },
+    {
+      "body": {
+        "datetime": "2024-06-01T00:00:00Z/2024-06-05T00:00:00Z",
+        "collections": [
+          "sentinel-2-l2a"
+        ],
+        "limit": 2,
+        "next": "2024-06-04T23:51:50.784000Z,S2B_59UPT_20240604_0_L2A,sentinel-2-l2a"
+      },
+      "href": "https://earth-search.aws.element84.com/v1/search",
+      "method": "POST",
+      "response": "search-2.json"
+    }
+  ],
+  "url": "https://earth-search.aws.element84.com/v1"
+}

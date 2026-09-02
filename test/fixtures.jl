@@ -6,6 +6,13 @@ const SPEC_DIR = joinpath(FIXTURES, "stac-spec")
 const HAND_DIR = joinpath(FIXTURES, "hand")
 const REAL_DIR = joinpath(FIXTURES, "real-world")
 const STATIC_DIR = joinpath(FIXTURES, "static")
+const ENDPOINT_DIR = joinpath(FIXTURES, "endpoints")
+
+# The six recorded APIs. See fixtures/endpoints/SOURCE.txt and fixtures/record.jl.
+const ENDPOINTS = ("planetary-computer", "earth-search", "landsatlook", "cmr-lpcloud",
+                   "cdse", "itslive")
+
+endpointdir(name) = joinpath(ENDPOINT_DIR, name)
 
 # The one catalog of `fixtures/static/`, published three ways, and what a depth-first walk of
 # it yields. See `fixtures/static/SOURCE.txt`.

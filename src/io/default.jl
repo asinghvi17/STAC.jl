@@ -1,14 +1,15 @@
 # The stack every call that takes no `io` uses, and the scoped value that holds it.
 
 """
-    STAC.defaultstack() -> AbstractIO
+    STAC.defaultstack(auth = NoAuth()) -> AbstractIO
 
 A fresh copy of the stack [`STAC.default_io`](@ref) returns: an LRU cache over a scheme
-router that sends `https` and `http` to an anonymous [`HTTPIO`](@ref STAC.HTTPIO) and
+router that sends `https` and `http` to an [`HTTPIO`](@ref STAC.HTTPIO) carrying `auth` and
 everything else to [`PathIO`](@ref STAC.PathIO).
 """
-defaultstack() = CachingIO(StreamRouterIO(("https" => HTTPIO(), "http" => HTTPIO(),
-                                           "" => PathIO(), "file" => PathIO())))
+defaultstack(auth::AbstractAuth = NoAuth()) =
+    CachingIO(StreamRouterIO(("https" => HTTPIO(auth), "http" => HTTPIO(auth),
+                             "" => PathIO(), "file" => PathIO())))
 
 """
     STAC.DEFAULT_IO

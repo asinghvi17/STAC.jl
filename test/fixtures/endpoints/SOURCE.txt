@@ -1,0 +1,31 @@
+Recorded responses from six public STAC APIs, one directory each.
+
+Produced by ../record.jl on 2026-09-02:
+
+    julia --project=. test/fixtures/record.jl [endpoint ...]
+
+Per directory:
+
+  root.json         the landing page
+  conformance.json  the /conformance document its `conformance` link points at
+  collections.json  the first page of /collections
+  search-1.json     POST /search with {collections, datetime, limit: 2}
+  search-2.json     the request search-1.json's `next` link describes
+  requests.json     the (method, href, body) that produced each of the above
+
+test/FixtureIO.jl replays requests.json: a request that does not match one of those four
+tuples exactly raises, so a client that formats its search differently than what is recorded
+here fails rather than being answered anyway.
+
+Every response body is verbatim except collections.json, whose `collections` array is
+truncated to its first two entries and re-serialized; the CMR and Planetary Computer
+deployments list hundreds of collections and the whole page is megabytes.
+
+The six endpoints cover the three paging shapes the spec permits:
+
+  planetary-computer, cdse, itslive   pgstac: POST `next` with the whole body plus a `token`
+  earth-search, landsatlook           stac-server: POST `next`, `merge: false`, own body
+  cmr-lpcloud                         a GET `next` carrying `cursor=`
+
+and the two count shapes: `numberMatched` (earth-search, landsatlook, itslive), the
+deprecated `context.matched` (cmr-lpcloud), and none at all (planetary-computer, cdse).
