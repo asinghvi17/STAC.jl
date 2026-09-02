@@ -1,0 +1,10 @@
+Manifest.toml
+/docs/build/
+/docs/Manifest.toml
+.DS_Store
+
+# Agent scratch space: task artifacts live outside the repo (symlink), local config is per-machine
+/.humanlayer/tasks/
+/.humanlayer/workspace.local.json
+/CLAUDE.local.md
+/.claude/settings.local.json
