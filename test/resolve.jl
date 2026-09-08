@@ -1,5 +1,6 @@
 using STAC, Test
-using STAC: Link, Metadata, absolutehref, isabsolutehref, localpath, resolve, urischeme
+using STAC: Link, Metadata, absolutehref, isabsolutehref, localpath, pathhref, resolve,
+            urischeme
 
 include("fixtures.jl")
 
@@ -80,10 +81,22 @@ end
     @test localpath("file:///a/b/catalog.json") == "/a/b/catalog.json"
     @test localpath("file:///a/b%20c/catalog.json") == "/a/b c/catalog.json"
     @test localpath("/a/b/catalog.json") == "/a/b/catalog.json"
+    # A Windows path is rooted in its drive, so the slash the URL roots itself with comes off
+    # again. Everywhere else that slash is the root and stays.
+    @test localpath("file:///C:/data/catalog.json") ==
+          (Sys.iswindows() ? "C:/data/catalog.json" : "/C:/data/catalog.json")
+end
+
+@testset "a href is `/`-separated on every platform" begin
+    @test pathhref("a/b/catalog.json") == "a/b/catalog.json"
+    @test pathhref(joinpath("a", "b", "catalog.json")) == "a/b/catalog.json"
+    @test !occursin('\\', pathhref(SPEC_DIR))
+    # The answer is still a path this platform opens: Windows takes either separator.
+    @test isfile(pathhref(joinpath(SPEC_DIR, "catalog.json")))
 end
 
 @testset "absolutehref records a local path as absolute and leaves URLs alone" begin
-    @test absolutehref("test/fixtures") == abspath("test/fixtures")
+    @test absolutehref(SPEC_DIR) == pathhref(abspath(SPEC_DIR))
     @test absolutehref("https://example.com/a") == "https://example.com/a"
     @test absolutehref("s3://bucket/key") == "s3://bucket/key"
 end

@@ -43,6 +43,24 @@ this filesystem.
 """
 isabsolutehref(href::AbstractString) = !isempty(urischeme(href)) || isabspath(href)
 
+"""
+    STAC.pathhref(path) -> String
+
+`path` spelled the way an href is. An href is a URI reference, where `/` separates the
+segments on every platform and `\\` separates nothing at all, so a path Windows handed back
+is respelled; on every other platform the path is already its own href.
+
+Windows opens a `/`-separated path as readily as a `\\`-separated one, so the answer stays a
+path you can read from as well as a href you can write to a document.
+
+```jldoctest
+julia> STAC.pathhref("catalogs/a/catalog.json")
+"catalogs/a/catalog.json"
+```
+"""
+pathhref(path::AbstractString) =
+    @static Sys.iswindows() ? replace(String(path), '\\' => '/') : String(path)
+
 @noinline _nobase(href) = throw(NoOrigin(String(href)))
 
 """
@@ -56,7 +74,7 @@ isabsolutehref(href::AbstractString) = !isempty(urischeme(href)) || isabspath(hr
 | carries a scheme | anything | `href`, unchanged |
 | any | a href with a scheme | RFC 3986 reference resolution |
 | an absolute path | a local path, or none | `href`, unchanged |
-| relative | a local path | `normpath(joinpath(dirname(base), href))` |
+| relative | a local path | `pathhref(normpath(joinpath(dirname(base), href)))` |
 | relative | `nothing` | a [`STAC.NoOrigin`](@ref) |
 
 A trailing slash on `base` is significant either way: `"./item.json"` against `"/a/b"` is
@@ -65,6 +83,9 @@ A trailing slash on `base` is significant either way: `"./item.json"` against `"
 A root-relative `"/collections/x.json"` is a path when the base is one and a host-rooted URL
 when the base is a URL, which is what RFC 3986 says and what an API that publishes such links
 means.
+
+The answer is always a href, so a local one is `/`-separated on Windows too; see
+[`STAC.pathhref`](@ref).
 """
 function resolve(href::AbstractString, base::Union{AbstractString,Nothing})
     isempty(urischeme(href)) || return String(href)
@@ -72,7 +93,7 @@ function resolve(href::AbstractString, base::Union{AbstractString,Nothing})
         return string(URIs.resolvereference(base, href))
     isabspath(href) && return String(href)
     base === nothing && _nobase(href)
-    return normpath(joinpath(dirname(base), href))
+    return pathhref(normpath(joinpath(dirname(base), href)))
 end
 
 resolve(link::Link, base::Union{AbstractString,Nothing}) = resolve(link.href, base)
@@ -80,7 +101,8 @@ resolve(link::Link, base::Union{AbstractString,Nothing}) = resolve(link.href, ba
 """
     STAC.absolutehref(href) -> String
 
-`href` as an origin worth recording: a local path becomes absolute, anything with a scheme is
-left alone.
+`href` as an origin worth recording: a local path becomes absolute and `/`-separated,
+anything with a scheme is left alone.
 """
-absolutehref(href::AbstractString) = isempty(urischeme(href)) ? abspath(href) : String(href)
+absolutehref(href::AbstractString) =
+    isempty(urischeme(href)) ? pathhref(abspath(href)) : String(href)

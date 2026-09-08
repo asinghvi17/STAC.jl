@@ -233,12 +233,26 @@ column in the session time zone, and `read_json` reads an RFC 3339 string into o
 """
 function connection()
     con = DBInterface.connect(DuckDB.DB, ":memory:")
-    DBInterface.execute(con, "SET TimeZone='UTC'")
+    query(con, "SET TimeZone='UTC'")
     return con
 end
 
+"""
+    STACDuckDBExt.query(con, sql) -> DuckDB.QueryResult
+
+`sql` run on `con`, through DuckDB.jl's own `execute`, which closes the prepared statement
+before it returns.
+
+`DBInterface.execute(::DuckDB.DB, sql)` reaches DBInterface.jl's generic method instead, and
+that one leaves the statement to the garbage collector. A prepared statement holds the last
+reference to the database it was prepared on, so the C++ teardown then runs inside a
+finalizer, after `close!` has already let the handle go — which on Windows is a heap fault
+that takes the process with it.
+"""
+query(con::DuckDB.DB, sql::AbstractString) = DBInterface.execute(con.main_connection, sql)
+
 describe(con, source::AbstractString) =
-    Tables.columntable(DBInterface.execute(con, string("DESCRIBE SELECT * FROM ", source)))
+    Tables.columntable(query(con, string("DESCRIBE SELECT * FROM ", source)))
 
 function STAC.read_geoparquet(::STAC.DuckDBDriver, path::AbstractString; kw...)
     opts = STAC.ParseOptions(; kw...)
@@ -250,7 +264,7 @@ function STAC.read_geoparquet(::STAC.DuckDBDriver, path::AbstractString; kw...)
         described = describe(con, source)
         sql = itemquery(source, collect(String, described.column_name),
                         collect(String, described.column_type))
-        rows = Tables.columntable(DBInterface.execute(con, sql))
+        rows = Tables.columntable(query(con, sql))
         out = Vector{T}(undef, length(rows.doc))
         for i in eachindex(rows.doc)
             item = STAC.parse(itemdocument(rows.doc[i]), T)
@@ -329,7 +343,7 @@ function STAC.write_geoparquet(::STAC.DuckDBDriver, path::AbstractString, items)
     try
         open(io -> foreach(item -> stage(io, item), items), staged, "w")
         mkpath(dirname(abspath(path)))
-        DBInterface.execute(con, copysql(staged, path))
+        query(con, copysql(staged, path))
     finally
         DBInterface.close!(con)
         rm(staged; force = true)

@@ -20,7 +20,14 @@ URL.
 """
 function localpath(href::AbstractString)
     urischeme(href) == "file" || return String(href)
-    return URIs.unescapeuri(URIs.URI(href).path)
+    path = URIs.unescapeuri(URIs.URI(href).path)
+    # `file:///C:/data/catalog.json` parses to the path `/C:/data/catalog.json`. That leading
+    # slash is the URL's root, and a Windows path is rooted in its drive instead.
+    @static if Sys.iswindows()
+        (ncodeunits(path) >= 3 && codeunit(path, 1) == UInt8('/') &&
+         codeunit(path, 3) == UInt8(':')) && return path[2:end]
+    end
+    return path
 end
 
 read(::PathIO, href::AbstractString) = Base.read(localpath(href))

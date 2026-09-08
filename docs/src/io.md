@@ -209,6 +209,11 @@ julia> STAC.resolve("./item.json", "/data/a/catalog.json")
 [`STAC.urischeme`](@ref) is what the router matches on, and it answers `""` for two things
 RFC 3986 would read otherwise: a Windows drive letter, and a path with a raw space in it.
 
+What comes back is always a href, so a local one is `/`-separated on Windows as well: `\` is
+an escape in the JSON an href is written to rather than a separator, and Windows opens a
+`/`-separated path as readily as its own spelling. [`STAC.pathhref`](@ref) is that respelling,
+and [`STAC.localpath`](@ref) the way back from a `file://` URL.
+
 ## Buckets
 
 `s3://` needs AWSS3.jl, which resolves credentials the way the AWS CLI does — the

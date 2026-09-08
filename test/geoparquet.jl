@@ -23,9 +23,12 @@ sourceitems() =
 
 byid(items) = sort(items; by = i -> i.id)
 
+# Run on `con.main_connection` rather than on `con`: DuckDB.jl's own `execute` closes the
+# prepared statement, and DBInterface.jl's generic one leaves it to a finalizer that then
+# tears the database down after `close!` — a heap fault on Windows.
 kvmetadata(path) = begin
     con = DBInterface.connect(DuckDB.DB, ":memory:")
-    rows = Tables.columntable(DBInterface.execute(con,
+    rows = Tables.columntable(DBInterface.execute(con.main_connection,
         string("SELECT key, value FROM parquet_kv_metadata('", path, "')")))
     DBInterface.close!(con)
     Dict(String(copy(k)) => String(copy(v)) for (k, v) in zip(rows.key, rows.value))

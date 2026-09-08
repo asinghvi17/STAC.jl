@@ -131,7 +131,11 @@ function placement(p::Publisher, obj::STACObject, dir::AbstractString, isroot::B
     href = obj.href
     (href === nothing || p.origin === nothing) && return bestpath(obj, dir, isroot)
     startswith(href, p.origin) || return bestpath(obj, dir, isroot)
-    return String(SubString(href, sizeof(p.origin) + 1))
+    kept = SubString(href, sizeof(p.origin) + 1)
+    # What is left of an href whose origin was the empty string is the href itself, and an
+    # absolute one would place the document by its own path rather than under `dest`.
+    isabsolutehref(kept) && return bestpath(obj, dir, isroot)
+    return String(kept)
 end
 
 abshref(p::Publisher, path::AbstractString) = (p.root_href::String) * path

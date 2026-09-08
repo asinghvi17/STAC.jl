@@ -14,6 +14,9 @@ const RASTERSEXT = Base.get_extension(STAC, :STACRastersExt)
 One single-band GeoTIFF on a UTM 10N grid, written with ArchGDAL. The fixtures are produced
 here rather than vendored: a GeoTIFF is bytes GDAL wrote, and the version that wrote them is
 the one reading them back.
+
+The path comes back as [`STAC.pathhref`](@ref) spells it, because every one of these goes on
+to be interpolated into an asset `href`: `\\` is an escape in a JSON string, not a separator.
 """
 function geotiff(path, values::Matrix{UInt16}; res::Float64 = 10.0)
     ArchGDAL.create(path; driver = ArchGDAL.getdriver("GTiff"), width = size(values, 1),
@@ -22,7 +25,7 @@ function geotiff(path, values::Matrix{UInt16}; res::Float64 = 10.0)
         ArchGDAL.setgeotransform!(ds, [4.0e5, res, 0.0, 4.6e6, 0.0, -res])
         ArchGDAL.setproj!(ds, ArchGDAL.toWKT(ArchGDAL.importEPSG(32610)))
     end
-    return path
+    return STAC.pathhref(path)
 end
 
 grid(n, offset) = UInt16[offset + 10i + j for i in 1:n, j in 1:n]
@@ -33,7 +36,7 @@ function writeitem(dir, id, datetime, offset)
     a = geotiff(joinpath(dir, id * "-a.tif"), grid(8, offset))
     b = geotiff(joinpath(dir, id * "-b.tif"), grid(8, offset + 1000))
     c = geotiff(joinpath(dir, id * "-c.tif"), grid(4, offset); res = 20.0)
-    f = joinpath(dir, id * "-footprint.geojson")
+    f = STAC.pathhref(joinpath(dir, id * "-footprint.geojson"))
     write(f, """
         {"type": "FeatureCollection", "features": [
           {"type": "Feature", "properties": {"id": "$id"},

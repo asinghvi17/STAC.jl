@@ -15,6 +15,18 @@ const ENDPOINTS = ("planetary-computer", "earth-search", "landsatlook", "cmr-lpc
 
 endpointdir(name) = joinpath(ENDPOINT_DIR, name)
 
+"""
+    fileurl(path) -> String
+
+`path` as a `file://` URL. The path is `/`-separated, and the URL roots it with a slash of
+its own after the empty authority — the one that precedes a Windows drive letter, and the
+one a POSIX path already begins with.
+"""
+function fileurl(path)
+    href = STAC.pathhref(path)
+    return startswith(href, '/') ? "file://" * href : "file:///" * href
+end
+
 # The one catalog of `fixtures/static/`, published three ways, and what a depth-first walk of
 # it yields. See `fixtures/static/SOURCE.txt`.
 const LINK_STYLES = ("self-contained", "relative-published", "absolute-published")

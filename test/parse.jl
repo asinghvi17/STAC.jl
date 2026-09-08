@@ -15,7 +15,7 @@ const TYPEOF_DOCTYPE = Dict(
         raw = JSON.parse(read(path))
         obj = STAC.read(path)
         @test obj isa TYPEOF_DOCTYPE[raw["type"]]
-        @test obj.href == abspath(path)
+        @test obj.href == STAC.pathhref(abspath(path))
     end
 end
 

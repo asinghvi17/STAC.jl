@@ -55,14 +55,14 @@ hasheader(rec::Recorder, name, value) =
 
     path = joinpath(STATIC_DIR, "self-contained", "catalog.json")
     @test STAC.read(io, path) == Base.read(path)
-    @test STAC.read(io, "file://" * path) == Base.read(path)
+    @test STAC.read(io, fileurl(path)) == Base.read(path)
     @test_throws STAC.NoRoute STAC.read(io, "s3://bucket/catalog.json")
 end
 
 @testset "PathIO reads a path and a file URL" begin
     path = joinpath(STATIC_DIR, "self-contained", "catalog.json")
     @test STAC.read(PathIO(), path) == Base.read(path)
-    @test STAC.read(PathIO(), "file://" * path) == Base.read(path)
+    @test STAC.read(PathIO(), fileurl(path)) == Base.read(path)
     @test STAC.request(PathIO(), "GET", path) == Base.read(path)
     @test_throws STAC.MethodUnsupported("PathIO", "POST") STAC.request(PathIO(), "POST", path)
 end

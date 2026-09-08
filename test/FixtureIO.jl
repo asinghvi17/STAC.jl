@@ -44,7 +44,7 @@ function FixtureIO(mounts::Pair...)
         for (root, _, files) in walkdir(dir), f in files
             endswith(f, ".json") || continue
             path = joinpath(root, f)
-            routes[prefix * replace(relpath(path, dir), '\\' => '/')] = path
+            routes[prefix * STAC.pathhref(relpath(path, dir))] = path
         end
     end
     return FixtureIO(routes, Recording[], STAC.RequestHeaders[], 0)
