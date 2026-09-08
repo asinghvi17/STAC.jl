@@ -6,6 +6,7 @@ using STAC: Asset, Item, Metadata, NoMetadata, NoDriverPackage, read_geoparquet,
 
 include("fixtures.jl")
 
+const DUCKDBEXT = Base.get_extension(STAC, :STACDuckDBExt)
 const GEOPARQUET_DIR = joinpath(FIXTURES, "geoparquet")
 const ITEMS_PARQUET = joinpath(GEOPARQUET_DIR, "items.parquet")
 const FOOTPRINTS_PARQUET = joinpath(GEOPARQUET_DIR, "footprints.parquet")
@@ -23,12 +24,11 @@ sourceitems() =
 
 byid(items) = sort(items; by = i -> i.id)
 
-# Run on `con.main_connection` rather than on `con`: DuckDB.jl's own `execute` closes the
-# prepared statement, and DBInterface.jl's generic one leaves it to a finalizer that then
-# tears the database down after `close!` — a heap fault on Windows.
+# On the extension's own database, because destroying a DuckDB database faults on Windows and
+# the extension is the one place that opens one. See `STACDuckDBExt.database`.
 kvmetadata(path) = begin
-    con = DBInterface.connect(DuckDB.DB, ":memory:")
-    rows = Tables.columntable(DBInterface.execute(con.main_connection,
+    con = DUCKDBEXT.connection()
+    rows = Tables.columntable(DBInterface.execute(con,
         string("SELECT key, value FROM parquet_kv_metadata('", path, "')")))
     DBInterface.close!(con)
     Dict(String(copy(k)) => String(copy(v)) for (k, v) in zip(rows.key, rows.value))

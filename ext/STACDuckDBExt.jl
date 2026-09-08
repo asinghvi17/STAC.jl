@@ -224,15 +224,64 @@ producer never wrote and which [`STAC.json`](@ref) would then publish.
 """
 itemdocument(doc::AbstractString) = JSON.json(JSON.parse(doc); omit_null = true)
 
-"""
-    STACDuckDBExt.connection() -> DuckDB.DB
+# One in-memory database for the process, opened on first use and never destroyed.
+#
+# Destroying one faults on Windows: tearing the catalog down destroys the entry for the table
+# function DuckDB.jl registers on every database it opens, and that destructor frees a pointer
+# the C runtime did not allocate — `EXCEPTION_ACCESS_VIOLATION` in `RtlFreeHeap`, from
+# `duckdb_close` or from whichever later garbage collection runs the finalizer. Nothing here
+# can make that teardown safe, so nothing here asks for it. A database is per process rather
+# than per file either way: opening one costs a table function registration and a settings
+# read, and a corpus is many files.
+const DATABASE = Ref{Union{DuckDB.DB,Nothing}}(nothing)
+const DATABASE_LOCK = ReentrantLock()
 
-A DuckDB connection of this module's own, pinned to UTC. Every instant in a STAC document is
-UTC, and both halves of the format depend on the setting: `strftime` renders a timestamp
-column in the session time zone, and `read_json` reads an RFC 3339 string into one.
+"""
+    STACDuckDBExt.database() -> DuckDB.DB
+
+The module's in-memory DuckDB database, opened on the first call and held for the life of the
+process. Queries run on a [`connection`](@ref STACDuckDBExt.connection) of their own, which is
+how DuckDB serves more than one at a time.
+"""
+function database()
+    return lock(DATABASE_LOCK) do
+        db = DATABASE[]
+        db === nothing || return db
+        db = DBInterface.connect(DuckDB.DB, ":memory:")
+        @static if Sys.iswindows()
+            atexit(() -> forget!(db))
+        end
+        DATABASE[] = db
+        return db
+    end
+end
+
+"""
+    STACDuckDBExt.forget!(db)
+
+`db` dropped rather than closed: the handles go to null, so the finalizers DuckDB.jl registered
+find nothing left to destroy.
+
+Julia runs every finalizer at exit, `_close_database` among them, which on Windows is the
+fault above at the one moment nothing is left to report it. An in-memory database holds
+nothing the operating system does not reclaim a moment later anyway.
+"""
+function forget!(db::DuckDB.DB)
+    db.main_connection.handle = C_NULL
+    db.handle.handle = C_NULL
+    return
+end
+
+"""
+    STACDuckDBExt.connection() -> DuckDB.Connection
+
+A connection to [`database`](@ref STACDuckDBExt.database), pinned to UTC. Every instant in a
+STAC document is UTC, and both halves of the format depend on the setting: `strftime` renders
+a timestamp column in the session time zone, and `read_json` reads an RFC 3339 string into
+one. The time zone is a session setting, so each connection states it.
 """
 function connection()
-    con = DBInterface.connect(DuckDB.DB, ":memory:")
+    con = DBInterface.connect(database())
     query(con, "SET TimeZone='UTC'")
     return con
 end
@@ -243,13 +292,11 @@ end
 `sql` run on `con`, through DuckDB.jl's own `execute`, which closes the prepared statement
 before it returns.
 
-`DBInterface.execute(::DuckDB.DB, sql)` reaches DBInterface.jl's generic method instead, and
-that one leaves the statement to the garbage collector. A prepared statement holds the last
-reference to the database it was prepared on, so the C++ teardown then runs inside a
-finalizer, after `close!` has already let the handle go — which on Windows is a heap fault
-that takes the process with it.
+`DBInterface.execute` on a `DuckDB.DB` reaches DBInterface.jl's generic method instead, and
+that one leaves the statement to the garbage collector — where it holds the last reference to
+the database and tears it down inside a finalizer.
 """
-query(con::DuckDB.DB, sql::AbstractString) = DBInterface.execute(con.main_connection, sql)
+query(con::DuckDB.Connection, sql::AbstractString) = DBInterface.execute(con, sql)
 
 describe(con, source::AbstractString) =
     Tables.columntable(query(con, string("DESCRIBE SELECT * FROM ", source)))
