@@ -3,6 +3,9 @@ uuid = "08e62803-e111-4f53-be9b-274ff296e9da"
 version = "0.1.0"
 authors = ["Anshul Singhvi <anshulsinghvi@gmail.com>"]
 
+[workspace]
+projects = ["test", "docs"]
+
 [deps]
 DataAPI = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 DE9IM = "5483dedb-0874-478e-8d7a-8c665bf87f01"
