@@ -106,3 +106,4 @@ read rather than a dictionary lookup, and the one key no field names —
 | Where does `eo:cloud_cover` live, and how do I add my own? | [Extensions](extensions.md) |
 | How do I read a million items, or publish a catalog? | [Bulk formats](formats.md) |
 | Can this go in a static binary? | [Static compilation](compilation.md) |
+| Why is the package built this way? | [Developer guide](design.md) |
