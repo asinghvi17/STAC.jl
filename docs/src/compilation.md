@@ -95,14 +95,13 @@ and a new kind of unresolved call fails the test.
 
 ## What the package does to stay this way
 
-These are conventions of the source rather than anything a user calls, but they explain why
-some of the code looks the way it does.
+These source conventions keep the supported call graphs resolvable. [Typed parsing and trimming](parsing.md) explains how the extension layout, sinks, and generated methods work together.
 
 | Convention | Instead of |
 |---|---|
 | parse sinks are callable structs | closures, which `applyeach` compiles unspecialized: a dynamic dispatch at runtime and an unresolved call under `--trim=safe` |
 | tail values go through `StructUtils.lift(style, Any, v)` | `make`, which is not the trim-verifiable generic path, and allocates about 40% more |
-| every nesting level of the parse is a distinct `@eval`-generated method | one generic `make` calling itself, which is the recursive typed parse the verifier reports |
+| nested parse targets have distinct methods, with selected families emitted by `@eval` | shared recursive construction paths that leave unresolved invokes |
 | exceptions are structs with `String`, `Int`, and `Symbol` fields, and `showerror` prints them one argument at a time | interpolation and `sprint` in an error path, both of which the verifier reports |
 | [`STAC.pointextent`](@ref) walks polygons, rings, and points with one method per level | `GeoInterface.calc_extent`, whose `extrema` fold over `Base.FlatteningRF` costs 28 verifier errors |
 | a value typed `Any` is read through an `isa` ladder in one method — [`STAC.queryvalue`](@ref) | one method per type: a call on an `Any` is unresolved even when exactly one method matches, so the methods cost what the ladder saves |
@@ -115,8 +114,6 @@ runs. `test/compile/Project.toml` pins `=0.22.23`.
 
 ## Which extensions a trimmed program sees
 
-The set is closed at compile time, so `extensions = (STAC.EO, STAC.Projection)` in a trim
-program is not a default that can be widened later — it is the whole list of extension structs the
-binary carries parse code for. Reaching for one outside it through [`get`](@ref) still works,
-[`STAC.fromtail`](@ref) being a lookup rather than a parse, but the wider the declared tuple
-the more code the binary holds.
+The selected tuple fixes the eager layout at compile time. Selecting `STAC.EO` and `STAC.Projection` gives the parser those two eager destinations; a wider tuple adds more parse branches.
+
+Extensions outside that layout can still be reconstructed from retained tails through [`get`](@ref). This path performs field lookups, typed lifting, and construction through [`STAC.fromtail`](@ref). A statically named lookup can bring additional methods into the binary, so the eager tuple is not a complete inventory of its extension code. Verify such lookups in the program that uses them; the linked examples do not establish a general guarantee for runtime extension discovery.

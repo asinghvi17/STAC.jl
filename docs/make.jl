@@ -33,6 +33,10 @@ makedocs(;
             "Bulk formats" => "formats.md",
             "Static compilation" => "compilation.md",
         ],
+        "Developer guide" => [
+            "How the package fits together" => "design.md",
+            "Typed parsing and trimming" => "parsing.md",
+        ],
         "API reference" => "api.md",
     ],
     checkdocs = :all,
