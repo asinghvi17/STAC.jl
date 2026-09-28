@@ -28,7 +28,7 @@ wraptail(::Type{NoMetadata}, ::NoMetadata) = NoMetadata()
 # `Any`, allocates 40% more, and leaves the trim verifier with unresolved calls.
 function tailstore!(tail::JSON.Object{String,Any}, style, k, v)
     val, pos = StructUtils.lift(style, Any, v)
-    tail[convert(String, k)] = val
+    tail[String(k)] = val
     return pos
 end
 
@@ -232,7 +232,7 @@ end
 
 function (f::MapSink{D,V})(k, v) where {D,V}
     val, pos = StructUtils.make(f.style, V, v)
-    f.dict[convert(String, k)] = val
+    f.dict[String(k)] = val
     return pos
 end
 
